@@ -9,7 +9,7 @@ Pequenos e médios pecuaristas responsáveis pelo acompanhamento de um rebanho, 
 
 ## Grupo
 - Victor Galvão — https://github.com/brb193
-- Jonas — jonasribeiro-s
+- Jonas — https://github.com/jonasribeiro-s
 
 
 ## Stack
