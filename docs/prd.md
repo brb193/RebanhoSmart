@@ -1,80 +1,160 @@
-# PRD — RebanhoSmart
+# PRD: RebanhoSmart — Documento de Requisitos do Produto
 
-## Escopo v1
+> **Versão:** 1.3.0  
+> **Status:** Aprovado  
+> **Form Factor Alvo:** Mobile Portrait (390 × 844 px)  
+> **Design System:** AgroField Robust (`#1B5E20`, Tipografia Inter, Roundness 8px, Alto Contraste > 4.5:1)  
+> **Público-Alvo:** Pequenos e médios pecuaristas.  
+> **Volume de Referência:** Plantel com 40 animais na lista principal; base de teste com até 400 usuários cadastrados (RNF-01).
 
-- **Cadastro e autenticação de produtores** — necessário para manter os dados de cada rebanho separados e protegidos.
-- **CRUD de animais** — cadastrar, consultar, editar e excluir animais com identificação, categoria e dados básicos.
-- **Registro e acompanhamento de manejos** — cadastrar vacinação, vermifugação, cobertura, parto e secagem com data prevista, realização e status.
-- **Histórico por animal** — permitir consultar os manejos e pesagens já registrados para cada animal.
-- **Alertas e notificações de manejos** — avisar sobre atividades próximas ou atrasadas, atacando diretamente o problema principal do produto.
-- **Consulta inteligente com LLM** — permitir que o produtor faça perguntas em linguagem natural sobre os dados cadastrados do rebanho, como “quais animais estão com vacinação atrasada?”, “quais vacas têm parto próximo?” ou “quais animais tiveram maior ganho de peso?”. A LLM interpreta a intenção da pergunta e auxilia na transformação da solicitação em filtros sobre os dados existentes, apresentando a resposta de forma simples ao usuário.
+---
 
-## Funcionalidade de IA
+## 1. Visão Geral e Contexto do Produto
 
-A principal funcionalidade de inteligência artificial do RebanhoSmart será a **consulta inteligente em linguagem natural sobre os dados do rebanho**.
+O **RebanhoSmart** é um aplicativo para acompanhamento de animais, manejos, pesagens, alertas e consultas sobre os dados do rebanho. Cada usuário acessa exclusivamente os dados associados à sua própria conta e ao seu rebanho.
 
-O produtor poderá escrever perguntas usando linguagem cotidiana, sem precisar navegar manualmente por diversas telas ou montar filtros específicos.
+O objetivo do produto é fornecer uma ferramenta móvel confiável, direta e resiliente para registro de animais e controle de manejos sanitários e reprodutivos, garantindo continuidade operacional mesmo em locais sem conectividade com a internet.
 
-Exemplos de consultas:
+---
 
-- “Quais animais estão com vacinação atrasada?”
-- “Quais vacas têm parto próximo?”
-- “Quais animais tiveram maior ganho de peso?”
-- “Quais manejos estão pendentes esta semana?”
+## 2. Escopo Estrito e Regras Negativas Invioláveis (Não-Escopo)
 
-A LLM será responsável por interpretar a intenção da pergunta e auxiliar na conversão da solicitação em critérios de consulta sobre os dados já cadastrados no sistema. A resposta apresentada ao usuário deverá ser baseada nos dados persistidos no aplicativo.
+Para assegurar foco, simplicidade e precisão no desenvolvimento, o RebanhoSmart define de forma explícita o que **NÃO** faz parte do produto:
 
-A IA não será responsável por criar ou inventar informações sobre os animais. Seu papel será facilitar o acesso às informações existentes.
+- **SEM** RFID ou conectividade Bluetooth.
+- **SEM** reconhecimento automático de brinco por câmera ou visão computacional. A foto do animal é permitida apenas como registro visual armazenado no cadastro, sem leitura automática, classificação, análise por IA ou extração de dados da imagem.
+- **SEM** emissão ou impressão de GTA, notas fiscais ou comprovantes.
+- **SEM** SISBOV, genealogia ou árvores genealógicas estendidas.
+- **SEM** controle financeiro, compras de medicamentos ou balanços contábeis.
+- **SEM** controle de estoque de vacinas ou de medicamentos.
+- **SEM** cálculo de arrobas ou cálculo de GMD (Ganho Médio Diário) automático.
+- **SEM** lotes, piquetes, pastos, apartação, curral, brete ou controle de porteiras.
+- **SEM** múltiplas propriedades por produtor, níveis de permissão ou perfis de funcionários.
+- **SEM** ações executivas automáticas disparadas por IA (a IA não cria registros, não executa ações e não toma decisões).
+- **SEM** exclusão em cascata de registros não definida explicitamente.
+- **SEM** exibição de códigos técnicos de requisitos (como `RF-01`, `RF-02`) na interface com o usuário final (telas, botões, modais, mensagens de erro).
+- **SEM** menção a tecnologias de armazenamento de dados na UI; utilização estrita dos termos funcionais aprovados (`Disponível offline`, `Pendente de sincronização`, `Sincronizado`).
 
-Sem essa funcionalidade, o aplicativo continuará permitindo consultar animais, manejos, pesagens e alertas, porém o produtor precisará localizar essas informações manualmente em diferentes telas e filtros. Dessa forma, a remoção da LLM torna o processo de consulta menos prático e mais demorado.
+---
 
-Caso o serviço de IA esteja indisponível ou retorne uma resposta inválida, as funcionalidades convencionais do aplicativo continuarão disponíveis normalmente.
+## 3. Requisitos Funcionais (RF)
 
+### 3.1 Autenticação e Gestão de Contas
+- **RF-01 — Cadastro de Usuário:**
+  - O usuário informa nome completo, e-mail, senha e confirmação de senha.
+  - O sistema valida os dados:
+    - *Validação de senha:* mínimo de 8 caracteres.
+    - *Validação de confirmação:* confirmação deve ser idêntica à senha ("As senhas informadas não coincidem. Digite novamente.").
+    - *Validação de unicidade:* e-mail não pode estar previamente cadastrado ("Este e-mail já está cadastrado no sistema. Faça login ou use outro e-mail.").
+  - Ao validar com sucesso, cria a conta, confirma a conclusão e direciona para a área privada (Dashboard).
+- **RF-02 — Login e Autenticação:**
+  - O usuário informa e-mail e senha.
+  - Credenciais válidas liberam o acesso aos dados da própria conta e direcionam para a área privada.
+  - Credenciais inválidas mantêm o usuário na tela de login e exibem mensagem de erro clara: *"Acesso não autorizado. Verifique suas credenciais e tente novamente."* (sem discriminar qual campo falhou, para resguardar a segurança).
 
-## 6. Requisitos funcionais
+### 3.2 Gestão de Animais (CRUD)
+- **RF-03 — Cadastro de Animal:**
+  - Permite cadastrar animal com: Número do brinco (obrigatório), Foto do animal (opcional, apenas para armazenamento visual), Nome/apelido (opcional), Categoria (Vaca, Novilha, Bezerro, Touro), Sexo (Fêmea/Macho), Raça, Data de nascimento/idade estimada, Origem e Status cadastral (Ativo/Inativo).
+  - A foto do animal não dispara reconhecimento automático, leitura de brinco, classificação, análise por IA ou qualquer ação executiva; sua finalidade é somente guardar a imagem associada ao cadastro do animal.
+- **RF-04 — Listagem de Animais:**
+  - Exibe a lista dos 40 animais ativos com número do brinco, nome (ou "Sem nome registrado"), categoria, raça e status sanitário resumido.
+  - Permite busca por número de brinco ou nome e filtros por categoria.
+  - No primeiro uso (sem animais cadastrados), exibe o estado vazio com chamada de ação para cadastrar o primeiro animal.
+- **RF-05 — Detalhes do Animal (Prontuário):**
+  - Exibe os dados cadastrais completos, último peso registrado, próximo manejo previsto e histórico cronológico unificado de pesagens e manejos.
+- **RF-06 — Edição de Animal:**
+  - Permite alterar os dados cadastrais do animal a partir do prontuário, com opção de salvar alterações ou cancelar (descartando alterações).
+- **RF-07 — Exclusão de Animal:**
+  - Permite excluir o animal através de diálogo de confirmação contendo estritamente:
+    - Título: *"Excluir animal?"*
+    - Subtítulo: *"Esta ação não pode ser desfeita."*
+    - Botões: *"Confirmar exclusão"* e *"Cancelar"*.
+  - Ao confirmar, o animal é removido e a listagem é atualizada, sem exclusão em cascata de registros de manejo ou pesagens.
 
-| ID | Requisito | Critério de aceite |
-|---|---|---|
-| RF-01 | O usuário informa seus dados de cadastro e o sistema cria uma conta e confirma a conclusão do cadastro. | Uma conta válida é criada e o usuário recebe confirmação do cadastro. |
-| RF-02 | O usuário informa suas credenciais e o sistema libera o acesso aos dados associados à sua conta quando a autenticação é válida. | Credenciais válidas dão acesso ao aplicativo e credenciais inválidas não liberam as telas privadas. |
-| RF-03 | O usuário informa os dados de um animal e o sistema registra o animal e o inclui na listagem do rebanho. | Após confirmar o cadastro, o novo animal aparece na lista do rebanho com os dados informados. |
-| RF-04 | O usuário acessa a listagem de animais e o sistema apresenta os animais cadastrados e permite abrir seus detalhes. | A lista exibe os animais cadastrados e o toque em um item abre a tela de detalhes correspondente. |
-| RF-05 | O usuário altera os dados de um animal e o sistema salva as alterações e apresenta os dados atualizados. | Após salvar, os novos dados permanecem visíveis ao reabrir o registro. |
-| RF-06 | O usuário solicita a exclusão de um animal, confirma a ação e o sistema remove o registro e atualiza a listagem. | Após a confirmação, o animal deixa de aparecer na listagem. |
-| RF-07 | O usuário informa o animal, o peso e a data da pesagem e o sistema registra a informação no histórico do animal. | A pesagem aparece no histórico do animal com o peso e a data informados. |
-| RF-08 | O usuário informa o tipo de manejo, os animais envolvidos e as datas previstas ou realizadas e o sistema registra a atividade e sua situação. | O manejo salvo aparece associado aos animais selecionados com tipo, data e situação corretos. |
-| RF-09 | O usuário seleciona vários animais para um mesmo manejo e o sistema cria uma única atividade mantendo a situação individual de cada participante. | Um único manejo é criado e cada animal selecionado possui sua própria situação dentro da atividade. |
-| RF-10 | O usuário informa que um manejo foi realizado e o sistema atualiza sua situação e o histórico dos animais relacionados. | O manejo passa a constar como concluído e aparece no histórico dos animais envolvidos. |
-| RF-11 | O usuário acessa os detalhes de um animal e o sistema apresenta seus manejos e pesagens em ordem cronológica. | A tela de detalhes mostra os registros do animal ordenados por data. |
-| RF-12 | O usuário consulta suas atividades e o sistema identifica e apresenta separadamente os manejos próximos, pendentes, concluídos e atrasados. | Cada manejo aparece na categoria correspondente à sua data e situação. |
-| RF-13 | O usuário autoriza notificações e o sistema envia avisos sobre manejos próximos ou atrasados e direciona ao registro correspondente quando o aviso é aberto. | Uma notificação de teste abre o manejo relacionado ao ser selecionada. |
-| RF-14 | O usuário escreve uma pergunta em linguagem natural sobre o rebanho e o sistema interpreta a solicitação, consulta os dados cadastrados e apresenta uma resposta baseada nesses registros. | Uma pergunta prevista para teste retorna uma resposta compatível com os dados cadastrados no rebanho. |
+### 3.3 Pesagens
+- **RF-08 — Registro de Pesagem:**
+  - Permite registrar a pesagem informando: Animal, Peso (em kg) e Data.
+  - O registro é inserido no histórico cronológico do animal.
+  - Não realiza cálculos automáticos de GMD ou conversão em arrobas.
 
-### Quando dá errado
+### 3.4 Manejos Sanitários e Reprodutivos
+- **RF-09 — Tipos de Manejos Permitidos:**
+  - Sanitários: Vacinação e Vermifugação.
+  - Reprodutivos: Inseminação/Cobertura, Parto e Secagem.
+- **RF-10 — Registro de Manejo:**
+  - Permite definir: Tipo de manejo, Escopo de aplicação (Individual ou Coletivo), Animal ou Animais participantes, Data prevista/realização, Situação e Observações.
+- **RF-11 — Manejo Coletivo:**
+  - O sistema cria **UMA única atividade de manejo**, mantendo a situação individual de cada animal participante dentro dessa atividade.
+- **RF-12 — Situações do Manejo e Tela de Confirmação/Sucesso:**
+  - Apresenta as situações: Próximos, Pendentes, Concluídos e Atrasados.
+  - Tela de Sucesso:
+    - *Manejo Agendado:* Título *"Manejo agendado com sucesso!"*, data futura e quantidade de animais programados.
+    - *Manejo Realizado:* Título *"Manejo registrado com sucesso!"*, resumo com total de participantes, quantidade de concluídos e quantidade de pendentes (ex: 38 concluídos, 2 pendentes com indicação dos brincos), sem termos inventados.
 
-| ID | Situação | Comportamento esperado |
-|---|---|---|
-| RF-15 | O usuário cancela um cadastro ou uma edição antes de confirmar. | O sistema descarta as alterações não confirmadas e retorna à tela anterior sem modificar o registro. |
-| RF-16 | O usuário nega a permissão para notificações. | O sistema mantém os alertas disponíveis dentro do aplicativo e permite o uso das demais funcionalidades normalmente. |
-| RF-17 | O usuário utiliza o aplicativo sem conexão com a internet. | O sistema exibe os dados disponíveis localmente, mantém novos registros como pendentes de sincronização e tenta sincronizá-los quando a conexão retorna. |
-| RF-18 | O usuário realiza uma consulta inteligente quando o serviço de IA está indisponível ou retorna uma resposta inválida. | O sistema informa que a consulta inteligente está indisponível e mantém animais, manejos, pesagens e alertas acessíveis. |
-| RF-19 | Duas sessões ou dispositivos autorizados tentam alterar simultaneamente o mesmo registro. | O sistema evita sobrescrever silenciosamente a alteração mais recente, informa o conflito e solicita a atualização dos dados antes de nova tentativa. |
+### 3.5 Alertas e Notificações
+- **RF-13 — Alertas Internos e Notificações do Sistema:**
+  - Apresenta manejos próximos e atrasados na aba **Alertas** do aplicativo.
+  - Dispara notificações do sistema operacional quando autorizadas pelo usuário.
+  - Ao tocar em uma notificação (interna ou externa), o sistema abre **SOMENTE o manejo relacionado**.
+  - Se as permissões de notificação forem negadas, o sistema mantém os alertas 100% visíveis dentro da aba Alertas e permite a utilização normal de todas as demais funcionalidades do aplicativo.
 
-## 7. Requisitos não funcionais
+### 3.6 Consulta Inteligente (LLM)
+- **RF-14 — Consulta em Linguagem Natural:**
+  - Permite ao usuário realizar perguntas em texto sobre os registros cadastrados (ex.: *"Quais animais estão com vacinação atrasada?"*, *"Quais vacas têm parto próximo?"*, *"Quais animais tiveram maior ganho de peso?"*, *"Quais manejos estão pendentes esta semana?"*).
+  - A IA é **puramente consultiva**: interpreta a intenção, transforma em critérios de busca no banco cadastrado e apresenta a resposta textual.
+  - A IA **NÃO** cria registros, **NÃO** altera dados e **NÃO** dispara ações executivas automáticas. Não há botões de ação gerados nas respostas da IA.
+- **RF-15 — Contingência de Falha da IA:**
+  - A Consulta Inteligente depende de conexão com o serviço na nuvem.
+  - Em caso de falta de conexão ou erro do serviço, o sistema exibe mensagem informativa clara: *"Consulta Inteligente indisponível no momento. Você ainda pode consultar animais, manejos, pesagens e alertas normalmente no aparelho."*
+  - As demais funcionalidades do aplicativo continuam plenamente operacionais no dispositivo.
 
-| ID | Requisito | Critério de aceite |
-|---|---|---|
-| RNF-01 | Em um celular Android de entrada conectado ao 4G, a lista principal com **40 itens** deve ser exibida em até **2 segundos**, considerando uma base com até **400 usuários cadastrados**. | Preparar a base de teste, abrir a lista usando 4G e medir o tempo em 3 execuções; todas devem concluir em até 2 segundos. |
-| RNF-02 | O servidor deve rejeitar **100% das tentativas** de um usuário autenticado de ler, alterar ou excluir registros pertencentes a outro usuário. | Criar duas contas de teste e tentar acessar ou modificar, com a conta B, um registro pertencente à conta A; todas as tentativas devem ser negadas pelo servidor. |
-| RNF-03 | Um usuário que nunca utilizou o RebanhoSmart deve conseguir abrir um animal existente e registrar um manejo em até **60 segundos**, sem instruções verbais durante o teste. | Entregar o celular a um colega, pedir apenas que registre uma vacinação e cronometrar; o fluxo deve ser concluído em até 60 segundos sem ajuda. |
-| RNF-04 | Após a sincronização, o usuário deve conseguir visualizar **100% dos 40 itens da lista principal** sem conexão e criar um novo registro local sem perda de dados. | Sincronizar os 40 itens, ativar o modo avião, consultar a lista, criar um registro, fechar e abrir o app e confirmar que o registro continua disponível como pendente de sincronização. |
-| RNF-05 | Quando **2 sessões** alterarem o mesmo registro antes de receberem a atualização mais recente, o sistema não deve sobrescrever silenciosamente uma alteração em **100% dos testes**. | Abrir o mesmo registro em duas sessões, salvar uma alteração na primeira e depois tentar salvar uma versão antiga na segunda; a primeira alteração deve ser preservada ou o conflito deve ser informado. |
+---
 
-## Não-escopo
+## 4. Requisitos Não-Funcionais (RNF)
 
-- **Reconhecimento automático do número do brinco pela câmera** — é tentador aproveitar a câmera, mas adiciona visão computacional/OCR sem ser essencial para validar o produto.
-- **Gestão financeira da propriedade** — receitas, despesas e custos aumentariam muito o domínio sem contribuir diretamente para o problema de acompanhamento dos manejos.
-- **Controle de estoque de vacinas e medicamentos** — combina com o tema, mas exigiria novas regras de entrada, saída, validade e quantidade.
-- **Múltiplas propriedades por produtor** — é uma evolução natural, mas acrescenta seleção de propriedade, vínculos e filtros que não são necessários para a primeira validação.
-- **Perfis de funcionários e níveis de permissão** — seria útil em propriedades maiores, porém aumenta bastante a complexidade de autenticação e autorização.
-- **Relatórios e dashboards avançados** — gráficos, exportações e análises detalhadas são atraentes, mas podem ser adicionados depois que o fluxo principal estiver funcionando.
+- **RNF-01 — Capacidade e Desempenho:**
+  - O sistema deve operar com fluidez em listas de 40 animais ativos e suportar uma base de teste de até 400 produtores cadastrados.
+- **RNF-02 — Resiliência Operacional Offline:**
+  - Toda a operação principal (cadastro de animais, visualização de prontuários, registro de pesagens e manejos, confirmação e alertas internos) funciona sem conexão à internet.
+  - Registros criados offline recebem a indicação `Pendente de sincronização`.
+  - Quando a conexão retorna, o sistema tenta sincronizar automaticamente (`Sincronizado`).
+  - Terminologia padronizada exclusiva: `Disponível offline`, `Pendente de sincronização` e `Sincronizado`.
+- **RNF-03 — Tratamento de Concorrência:**
+  - Em caso de duas sessões editando o mesmo registro concorrentemente, o salvamento de uma versão mais recente impede a sobrescrita silenciosa pela outra sessão, exibindo: *"Este registro foi alterado em outra sessão. Atualize os dados antes de salvar novamente."* e permitindo atualizar os dados antes de tentar gravar novamente.
+- **RNF-04 — Ergonomia, Acessibilidade e Luz Solar:**
+  - Tipografia legível sob sol pleno com tamanho mínimo de corpo de **16 px / 16 pt** e contraste de cores superior a **4.5:1** (WCAG AA).
+  - Área mínima de toque (touch targets) de **48 px a 52 px** para todos os botões, campos e seletores interativos.
+  - Posicionamento das principais decisões de ação na zona ergonômica do polegar (metade inferior da tela).
+
+---
+
+## 5. Mapeamento dos Fluxos Navegáveis
+
+```
+1. AUTENTICAÇÃO:
+   [Tela de Autenticação] (Abas: "Entrar" e "Criar conta")
+     ├── Dados inválidos ──► Exibe erro na tela sem código de RF
+     └── Credenciais / Cadastro válidos ──► [Dashboard Privado]
+
+2. FLUXO DE PRIMEIRO USO:
+   [Dashboard] ──► [Lista de Animais — Estado Vazio] ──► [Cadastrar Primeiro Animal] ──► [Prontuário do Animal]
+
+3. FLUXO PRINCIPAL DE MANEJO:
+   [Dashboard] ──► [Lista de Animais] ──► [Detalhes do Animal] ──► [Registrar Manejo]
+     ├── Individual: Seleção direta de 1 animal
+     └── Coletivo: [Selecionar Animais para Manejo Coletivo]
+     ──► [Confirmar Manejo] ──► [Manejo Registrado com Sucesso]
+
+4. FLUXO DE CRUD E PESAGEM:
+   - Edição: [Detalhes] ──► [Editar] ──► [Salvar] ──► [Detalhes Atualizados]
+   - Exclusão: [Detalhes] ──► [Modal: Excluir animal?] ──► [Confirmar exclusão] ──► [Lista Atualizada]
+   - Pesagem: [Detalhes] ──► [+ Pesagem] ──► [Salvar Peso e Data] ──► [Histórico Atualizado]
+   - Cancelamento: Em qualquer tela de formulário, [Cancelar] descarta e retorna.
+
+5. ALERTA E NOTIFICAÇÃO:
+   [Notificação de Alerta] ──► [Manejo Relacionado] (Abre estritamente o manejo, conforme RF-13)
+
+6. CONSULTA INTELIGENTE E CONTINGÊNCIA:
+   [Aba Consulta] ──► Pergunta em linguagem natural ──► Resposta puramente informativa
+   (Se sem rede: Alerta de indisponibilidade da IA; demais abas e dados locais continuam acessíveis)
+```
