@@ -9,7 +9,8 @@ Pequenos e médios pecuaristas responsáveis pelo acompanhamento de um rebanho, 
 
 ## Grupo
 - Victor Galvão — https://github.com/brb193
-- Jonas — [GitHub]
+- Jonas — jonasribeiro-s
+
 
 ## Stack
 React Native + Expo SDK 54, Firebase Auth + Firestore, LLM: Gemini via Google AI Studio.
