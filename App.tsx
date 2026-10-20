@@ -1,0 +1,44 @@
+import { useFonts } from '@expo-google-fonts/inter';
+import { StatusBar } from 'expo-status-bar';
+import { useState } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+
+import { AuthScreen } from './src/components/AuthScreen';
+import { DashboardScreen } from './src/components/DashboardScreen';
+import { colors } from './src/theme';
+
+type AppScreen = 'auth' | 'dashboard';
+
+export default function App() {
+  const [screen, setScreen] = useState<AppScreen>('auth');
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular: require('@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf'),
+    Inter_500Medium: require('@expo-google-fonts/inter/500Medium/Inter_500Medium.ttf'),
+    Inter_600SemiBold: require('@expo-google-fonts/inter/600SemiBold/Inter_600SemiBold.ttf'),
+    Inter_700Bold: require('@expo-google-fonts/inter/700Bold/Inter_700Bold.ttf'),
+  });
+
+  if (!fontsLoaded) {
+    return (
+      <View style={styles.loadingScreen}>
+        <ActivityIndicator color={colors.primary} size="large" />
+      </View>
+    );
+  }
+
+  return (
+    <>
+      <StatusBar style="dark" />
+      {screen === 'auth' ? <AuthScreen onSuccess={() => setScreen('dashboard')} /> : <DashboardScreen />}
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  loadingScreen: {
+    alignItems: 'center',
+    backgroundColor: colors.page,
+    flex: 1,
+    justifyContent: 'center',
+  },
+});

@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "RebanhoSmart",
+    "slug": "rebanho-smart",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#F8F9FF"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#F8F9FF"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}

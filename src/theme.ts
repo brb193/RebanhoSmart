@@ -1,0 +1,31 @@
+export const colors = {
+  border: '#D0DBED',
+  card: '#FEFFFE',
+  error: '#991B1B',
+  errorBackground: '#FEE2E2',
+  errorBorder: '#FCA5A5',
+  input: '#EFF4FF',
+  muted: '#475569',
+  page: '#F8F9FF',
+  primary: '#1B5E20',
+  primaryActive: '#144818',
+  primarySoft: '#E8F3E9',
+  success: '#166534',
+  successBackground: '#DCFCE7',
+  successBorder: '#86EFAC',
+  text: '#0F172A',
+  terracotta: '#B43403',
+  terracottaActive: '#8F2902',
+  terracottaSoft: '#FFEDD5',
+  white: '#FEFFFE',
+  warning: '#92400E',
+  warningBackground: '#FEF3C7',
+  warningBorder: '#FCD34D',
+} as const;
+
+export const fonts = {
+  bold: 'Inter_700Bold',
+  medium: 'Inter_500Medium',
+  regular: 'Inter_400Regular',
+  semibold: 'Inter_600SemiBold',
+} as const;
