@@ -93,12 +93,17 @@ const NAVIGATION_ITEMS: Array<{ icon: DashboardTab; label: string }> = [
   { icon: 'search', label: 'Consulta' },
 ];
 
-export function DashboardScreen() {
+interface DashboardScreenProps {
+  onNavigateToAnimals?: () => void;
+}
+
+export function DashboardScreen({ onNavigateToAnimals: onNavigateToAnimalsProp }: DashboardScreenProps) {
   const [isOffline, setIsOffline] = useState(false);
   const [activeTab, setActiveTab] = useState<DashboardTab>('home');
 
   function onNavigateToAnimals() {
     console.log('Navegar para Animais');
+    onNavigateToAnimalsProp?.();
   }
 
   function onNavigateToNewHandling() {

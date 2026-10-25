@@ -5,9 +5,10 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { AuthScreen } from './src/components/AuthScreen';
 import { DashboardScreen } from './src/components/DashboardScreen';
+import { AnimalListScreen } from './src/components/AnimalListScreen';
 import { colors } from './src/theme';
 
-type AppScreen = 'auth' | 'dashboard';
+type AppScreen = 'auth' | 'dashboard' | 'animals';
 
 export default function App() {
   const [screen, setScreen] = useState<AppScreen>('auth');
@@ -29,7 +30,9 @@ export default function App() {
   return (
     <>
       <StatusBar style="dark" />
-      {screen === 'auth' ? <AuthScreen onSuccess={() => setScreen('dashboard')} /> : <DashboardScreen />}
+      {screen === 'auth' && <AuthScreen onSuccess={() => setScreen('dashboard')} />}
+      {screen === 'dashboard' && <DashboardScreen onNavigateToAnimals={() => setScreen('animals')} />}
+      {screen === 'animals' && <AnimalListScreen />}
     </>
   );
 }
