@@ -35,7 +35,7 @@ export interface Animal {
 }
 
 // Mock de Dados - 40 Animais
-const MOCK_ANIMALS: Animal[] = [
+export const MOCK_ANIMALS: Animal[] = [
   // Vacas (18)
   { id: '1', brinco: '#024', nome: 'Mimosa', categoria: 'Vacas', raca: 'Holandesa', status: 'Vacina atrasada' },
   { id: '2', brinco: '#025', nome: 'Estrela', categoria: 'Vacas', raca: 'Jersey', status: 'Em dia' },
