@@ -13,6 +13,15 @@
         "backgroundColor": "#F8F9FF"
       }
     },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Permita que o RebanhoSmart use a câmera para fotografar o animal.",
+          "photosPermission": "Permita que o RebanhoSmart acesse suas fotos para anexar um animal."
+        }
+      ]
+    ],
     "web": {
       "bundler": "metro"
     }

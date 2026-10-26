@@ -83,7 +83,11 @@ const CATEGORIES: { label: AnimalCategory; count: number }[] = [
   { label: 'Touros', count: 4 },
 ];
 
-export function AnimalListScreen() {
+interface AnimalListScreenProps {
+  onNavigateToCreateAnimal: () => void;
+}
+
+export function AnimalListScreen({ onNavigateToCreateAnimal }: AnimalListScreenProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<AnimalCategory>('Todos');
   const [showEmptyState, setShowEmptyState] = useState(false);
@@ -103,8 +107,6 @@ export function AnimalListScreen() {
   }, [searchTerm, selectedCategory, showEmptyState]);
 
   const onSelectAnimal = (id: string) => console.log('Selecionar animal:', id);
-  const onNavigateToCreateAnimal = () => console.log('Navegar para Criar Animal');
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.phoneFrame}>

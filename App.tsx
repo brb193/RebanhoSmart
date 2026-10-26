@@ -4,11 +4,12 @@ import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { AuthScreen } from './src/components/AuthScreen';
+import { AnimalRegistrationScreen, type AnimalInput } from './src/components/AnimalRegistrationScreen';
 import { DashboardScreen } from './src/components/DashboardScreen';
 import { AnimalListScreen } from './src/components/AnimalListScreen';
 import { colors } from './src/theme';
 
-type AppScreen = 'auth' | 'dashboard' | 'animals';
+type AppScreen = 'auth' | 'dashboard' | 'animals' | 'animal-registration';
 
 export default function App() {
   const [screen, setScreen] = useState<AppScreen>('auth');
@@ -27,12 +28,22 @@ export default function App() {
     );
   }
 
+  function handleSaveAnimal(_data: AnimalInput) {
+    setScreen('animals');
+  }
+
   return (
     <>
       <StatusBar style="dark" />
       {screen === 'auth' && <AuthScreen onSuccess={() => setScreen('dashboard')} />}
       {screen === 'dashboard' && <DashboardScreen onNavigateToAnimals={() => setScreen('animals')} />}
-      {screen === 'animals' && <AnimalListScreen />}
+      {screen === 'animals' && <AnimalListScreen onNavigateToCreateAnimal={() => setScreen('animal-registration')} />}
+      {screen === 'animal-registration' && (
+        <AnimalRegistrationScreen
+          onCancel={() => setScreen('animals')}
+          onSaveAnimal={handleSaveAnimal}
+        />
+      )}
     </>
   );
 }
