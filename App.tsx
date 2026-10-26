@@ -6,13 +6,44 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { AuthScreen } from './src/components/AuthScreen';
 import { AnimalRegistrationScreen, type AnimalInput } from './src/components/AnimalRegistrationScreen';
 import { DashboardScreen } from './src/components/DashboardScreen';
-import { AnimalListScreen } from './src/components/AnimalListScreen';
+import { AnimalListScreen, type Animal } from './src/components/AnimalListScreen';
+import { AnimalProfileScreen, type AnimalProfile } from './src/components/AnimalProfileScreen';
+import { HandlingRegistrationScreen, type HandlingRecord } from './src/components/HandlingRegistrationScreen';
 import { colors } from './src/theme';
 
-type AppScreen = 'auth' | 'dashboard' | 'animals' | 'animal-registration';
+type AppScreen = 'auth' | 'dashboard' | 'animals' | 'animal-registration' | 'animal-profile' | 'handling-registration';
+
+const MIMOSA_PROFILE: AnimalProfile = {
+  tagNumber: '#024',
+  name: 'Mimosa',
+  photoUri: 'https://images.unsplash.com/photo-1516467508483-a7212febe31a?auto=format&fit=crop&w=900&q=80',
+  category: 'Vaca',
+  breed: 'Holandesa',
+  gender: 'Fêmea',
+  birthDate: '12/04/2021',
+  origin: 'Nascido no Local',
+  status: 'Ativa',
+  currentWeight: 420,
+  lastWeightDate: '18/09/2026',
+  nextHandling: {
+    title: 'Vacinação Febre Aftosa',
+    date: '25/09/2026',
+    daysNotice: 'Em 2 dias',
+  },
+  history: [
+    { id: 'weight-18-09-2026', type: 'weight', title: 'Pesagem', date: '18/09/2026', details: '420 kg', status: 'Concluído' },
+    { id: 'deworming-10-08-2026', type: 'deworming', title: 'Vermifugação', date: '10/08/2026', status: 'Realizado' },
+    { id: 'vaccine-15-05-2026', type: 'vaccine', title: 'Vacinação Febre Aftosa', date: '15/05/2026', status: 'Realizado' },
+    { id: 'breeding-20-02-2026', type: 'breeding', title: 'Inseminação / Cobertura', date: '20/02/2026', status: 'Realizado' },
+    { id: 'weight-10-01-2026', type: 'weight', title: 'Pesagem', date: '10/01/2026', details: '395 kg', status: 'Concluído' },
+  ],
+  notes: 'Animal manso, com boa adaptação à ordenha.',
+};
 
 export default function App() {
   const [screen, setScreen] = useState<AppScreen>('auth');
+  const [editingAnimal, setEditingAnimal] = useState<AnimalInput | undefined>();
+  const [selectedAnimal, setSelectedAnimal] = useState<AnimalProfile>(MIMOSA_PROFILE);
   const [fontsLoaded] = useFonts({
     Inter_400Regular: require('@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf'),
     Inter_500Medium: require('@expo-google-fonts/inter/500Medium/Inter_500Medium.ttf'),
@@ -28,8 +59,151 @@ export default function App() {
     );
   }
 
-  function handleSaveAnimal(_data: AnimalInput) {
+  function handleSaveAnimal(data: AnimalInput) {
+    if (!editingAnimal) {
+      setScreen('animals');
+      return;
+    }
+
+    setSelectedAnimal((current) => ({
+      ...current,
+      birthDate: data.birthDate || current.birthDate,
+      breed: data.breed,
+      category: data.category,
+      gender: data.gender,
+      name: data.name,
+      notes: data.notes,
+      origin: data.origin,
+      photoUri: data.photoUri,
+      status: data.status === 'Ativo' ? 'Ativa' : 'Inativa',
+      tagNumber: data.tagNumber,
+    }));
+    setEditingAnimal(undefined);
+    setScreen('animal-profile');
+  }
+
+  function handleOpenAnimal(animal: Animal) {
+    if (animal.brinco === MIMOSA_PROFILE.tagNumber) {
+      setSelectedAnimal((current) =>
+        current.tagNumber === MIMOSA_PROFILE.tagNumber ? current : MIMOSA_PROFILE,
+      );
+    } else {
+      setSelectedAnimal({
+        ...MIMOSA_PROFILE,
+        tagNumber: animal.brinco,
+        name: animal.nome,
+        category: animal.categoria === 'Vacas'
+          ? 'Vaca'
+          : animal.categoria === 'Novilhas'
+            ? 'Novilha'
+            : animal.categoria === 'Bezerros'
+              ? 'Bezerro'
+              : 'Touro',
+        breed: animal.raca,
+        gender: animal.categoria === 'Touros' ? 'Macho' : 'Fêmea',
+        photoUri: null,
+      });
+    }
+
+    setScreen('animal-profile');
+  }
+
+  function handleEditAnimal(tagNumber: string) {
+    if (tagNumber !== selectedAnimal.tagNumber) return;
+
+    setEditingAnimal({
+      tagNumber: selectedAnimal.tagNumber,
+      name: selectedAnimal.name,
+      photoUri: selectedAnimal.photoUri,
+      category: selectedAnimal.category === 'Vaca'
+        || selectedAnimal.category === 'Novilha'
+        || selectedAnimal.category === 'Bezerro'
+        || selectedAnimal.category === 'Touro'
+        ? selectedAnimal.category
+        : 'Novilha',
+      gender: selectedAnimal.gender === 'Macho' ? 'Macho' : 'Fêmea',
+      breed: selectedAnimal.breed,
+      birthDate: selectedAnimal.birthDate,
+      origin: selectedAnimal.origin === 'Comprado' || selectedAnimal.origin === 'Externo' ? selectedAnimal.origin : 'Nascido no Local',
+      status: selectedAnimal.status === 'Ativa' ? 'Ativo' : 'Inativo',
+      notes: selectedAnimal.notes,
+    });
+    setScreen('animal-registration');
+  }
+
+  function handleDeleteAnimal(tagNumber: string) {
+    console.log('Animal excluído:', tagNumber);
+    setEditingAnimal(undefined);
     setScreen('animals');
+  }
+
+  function handleCancelAnimalForm() {
+    setScreen(editingAnimal ? 'animal-profile' : 'animals');
+  }
+
+  function handleSaveWeight(weight: number, date: string) {
+    console.log('Pesagem salva:', { weight, date });
+    const item = {
+      id: `weight-${Date.now()}`,
+      type: 'weight' as const,
+      title: 'Pesagem',
+      date,
+      details: `${formatWeight(weight)} kg`,
+      status: 'Concluído' as const,
+    };
+
+    setSelectedAnimal((current) => {
+      const history = [...current.history, item].sort(
+        (first, second) => dateValue(second.date) - dateValue(first.date),
+      );
+      const isMostRecentWeight = dateValue(date) >= dateValue(current.lastWeightDate);
+
+      return {
+        ...current,
+        history,
+        ...(isMostRecentWeight ? { currentWeight: weight, lastWeightDate: date } : {}),
+      };
+    });
+  }
+
+  function handleNavigateToHandling(tagNumber: string) {
+    if (tagNumber === selectedAnimal.tagNumber) setScreen('handling-registration');
+  }
+
+  function handleSaveHandling(record: HandlingRecord) {
+    console.log('Manejo salvo:', { ...record, tagNumber: selectedAnimal.tagNumber });
+    const typeByTitle: Record<HandlingRecord['type'], AnimalProfile['history'][number]['type']> = {
+      Vacinação: 'vaccine',
+      Vermifugação: 'deworming',
+      'Inseminação / Cobertura': 'breeding',
+      Parto: 'birth',
+      Secagem: 'drying',
+    };
+    const item = {
+      id: `handling-${Date.now()}`,
+      type: typeByTitle[record.type],
+      title: record.type,
+      date: record.date,
+      status: record.status === 'Realizado' ? 'Realizado' as const : 'Agendado' as const,
+      details: record.notes || undefined,
+    };
+
+    setSelectedAnimal((current) => ({
+      ...current,
+      history: [...current.history, item].sort(
+        (first, second) => dateValue(second.date) - dateValue(first.date),
+      ),
+      ...(record.status === 'Agendado / Pendente'
+        ? {
+            nextHandling: {
+              title: record.type,
+              date: record.date,
+              daysNotice: formatDaysNotice(record.date),
+            },
+          }
+        : {}),
+    }));
+    setScreen('animal-profile');
   }
 
   return (
@@ -37,15 +211,64 @@ export default function App() {
       <StatusBar style="dark" />
       {screen === 'auth' && <AuthScreen onSuccess={() => setScreen('dashboard')} />}
       {screen === 'dashboard' && <DashboardScreen onNavigateToAnimals={() => setScreen('animals')} />}
-      {screen === 'animals' && <AnimalListScreen onNavigateToCreateAnimal={() => setScreen('animal-registration')} />}
+      {screen === 'animals' && (
+        <AnimalListScreen
+          onNavigateToAnimal={handleOpenAnimal}
+          onNavigateToCreateAnimal={() => {
+            setEditingAnimal(undefined);
+            setScreen('animal-registration');
+          }}
+        />
+      )}
       {screen === 'animal-registration' && (
         <AnimalRegistrationScreen
-          onCancel={() => setScreen('animals')}
+          initialAnimal={editingAnimal}
+          onCancel={handleCancelAnimalForm}
           onSaveAnimal={handleSaveAnimal}
+        />
+      )}
+      {screen === 'animal-profile' && (
+        <AnimalProfileScreen
+          animal={selectedAnimal}
+          onBack={() => setScreen('animals')}
+          onDeleteConfirm={handleDeleteAnimal}
+          onEdit={handleEditAnimal}
+          onNavigateToHandling={handleNavigateToHandling}
+          onSaveWeight={handleSaveWeight}
+        />
+      )}
+      {screen === 'handling-registration' && (
+        <HandlingRegistrationScreen
+          animalName={selectedAnimal.name}
+          onBack={() => setScreen('animal-profile')}
+          onSave={handleSaveHandling}
+          tagNumber={selectedAnimal.tagNumber}
         />
       )}
     </>
   );
+}
+
+function formatWeight(weight: number) {
+  return Number.isInteger(weight) ? String(weight) : weight.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+}
+
+function dateValue(value: string) {
+  const [day, month, year] = value.split('/').map(Number);
+  return new Date(year, month - 1, day).getTime();
+}
+
+function formatDaysNotice(value: string) {
+  const [day, month, year] = value.split('/').map(Number);
+  const handlingDate = new Date(year, month - 1, day);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.round((handlingDate.getTime() - today.getTime()) / 86_400_000);
+
+  if (days === 0) return 'Hoje';
+  if (days === 1) return 'Amanhã';
+  if (days === -1) return 'Há 1 dia';
+  return days > 0 ? `Em ${days} dias` : `Há ${Math.abs(days)} dias`;
 }
 
 const styles = StyleSheet.create({

@@ -25,7 +25,7 @@ import { AnimalEmptyState } from './AnimalEmptyState';
 type AnimalCategory = 'Todos' | 'Vacas' | 'Novilhas' | 'Bezerros' | 'Touros';
 type SanitaryStatus = 'Em dia' | 'Vacina atrasada' | 'Vermífugo pend.';
 
-interface Animal {
+export interface Animal {
   id: string;
   brinco: string;
   nome?: string;
@@ -84,10 +84,11 @@ const CATEGORIES: { label: AnimalCategory; count: number }[] = [
 ];
 
 interface AnimalListScreenProps {
+  onNavigateToAnimal: (animal: Animal) => void;
   onNavigateToCreateAnimal: () => void;
 }
 
-export function AnimalListScreen({ onNavigateToCreateAnimal }: AnimalListScreenProps) {
+export function AnimalListScreen({ onNavigateToAnimal, onNavigateToCreateAnimal }: AnimalListScreenProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<AnimalCategory>('Todos');
   const [showEmptyState, setShowEmptyState] = useState(false);
@@ -106,7 +107,7 @@ export function AnimalListScreen({ onNavigateToCreateAnimal }: AnimalListScreenP
     });
   }, [searchTerm, selectedCategory, showEmptyState]);
 
-  const onSelectAnimal = (id: string) => console.log('Selecionar animal:', id);
+  const onSelectAnimal = (animal: Animal) => onNavigateToAnimal(animal);
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.phoneFrame}>
@@ -191,7 +192,7 @@ export function AnimalListScreen({ onNavigateToCreateAnimal }: AnimalListScreenP
               keyExtractor={(item) => item.id}
               contentContainerStyle={styles.listContent}
               renderItem={({ item }) => (
-                <AnimalCard animal={item} onPress={() => onSelectAnimal(item.id)} />
+                <AnimalCard animal={item} onPress={() => onSelectAnimal(item)} />
               )}
             />
             

@@ -42,6 +42,7 @@ export interface AnimalInput {
 }
 
 interface AnimalRegistrationScreenProps {
+  initialAnimal?: AnimalInput;
   onCancel: () => void;
   onSaveAnimal: (data: AnimalInput) => void;
 }
@@ -80,11 +81,28 @@ const INITIAL_FORM: AnimalFormState = {
   tagNumber: '',
 };
 
-export function AnimalRegistrationScreen({ onCancel, onSaveAnimal }: AnimalRegistrationScreenProps) {
-  const [form, setForm] = useState<AnimalFormState>(INITIAL_FORM);
+function createInitialForm(initialAnimal?: AnimalInput): AnimalFormState {
+  if (!initialAnimal) return INITIAL_FORM;
+
+  return {
+    birthDate: initialAnimal.birthDate || '',
+    breed: BREEDS.includes(initialAnimal.breed) ? initialAnimal.breed : 'Outra',
+    category: initialAnimal.category,
+    customBreed: BREEDS.includes(initialAnimal.breed) ? '' : initialAnimal.breed,
+    gender: initialAnimal.gender,
+    name: initialAnimal.name || '',
+    notes: initialAnimal.notes || '',
+    origin: initialAnimal.origin,
+    status: initialAnimal.status,
+    tagNumber: initialAnimal.tagNumber,
+  };
+}
+
+export function AnimalRegistrationScreen({ initialAnimal, onCancel, onSaveAnimal }: AnimalRegistrationScreenProps) {
+  const [form, setForm] = useState<AnimalFormState>(() => createInitialForm(initialAnimal));
   const [focusedField, setFocusedField] = useState<FormField | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [photoUri, setPhotoUri] = useState<string | null>(initialAnimal?.photoUri || null);
   const [showTagError, setShowTagError] = useState(false);
 
   function updateField(field: FormField, value: string) {
@@ -129,10 +147,10 @@ export function AnimalRegistrationScreen({ onCancel, onSaveAnimal }: AnimalRegis
   }
 
   function handleCancel() {
-    setForm(INITIAL_FORM);
+    setForm(createInitialForm(initialAnimal));
     setFocusedField(null);
     setPhotoError(null);
-    setPhotoUri(null);
+    setPhotoUri(initialAnimal?.photoUri || null);
     setShowTagError(false);
     console.log('Cadastro cancelado');
     onCancel();
