@@ -95,11 +95,13 @@ const NAVIGATION_ITEMS: Array<{ icon: DashboardTab; label: string }> = [
 
 interface DashboardScreenProps {
   onNavigateToAnimals?: () => void;
+  onNavigateToAlerts?: () => void;
   onNavigateToConsultation?: () => void;
 }
 
 export function DashboardScreen({
   onNavigateToAnimals: onNavigateToAnimalsProp,
+  onNavigateToAlerts: onNavigateToAlertsProp,
   onNavigateToConsultation: onNavigateToConsultationProp,
 }: DashboardScreenProps) {
   const [isOffline, setIsOffline] = useState(false);
@@ -132,7 +134,7 @@ export function DashboardScreen({
     }
 
     if (tab === 'alerts') {
-      console.log('Navegar para Alertas');
+      onNavigateToAlertsProp?.();
       return;
     }
 

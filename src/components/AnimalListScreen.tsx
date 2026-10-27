@@ -87,6 +87,7 @@ interface AnimalListScreenProps {
   onNavigateToAnimal: (animal: Animal) => void;
   onNavigateToCreateAnimal: () => void;
   onNavigateToDashboard: () => void;
+  onNavigateToAlerts: () => void;
   onNavigateToConsultation: () => void;
 }
 
@@ -94,6 +95,7 @@ export function AnimalListScreen({
   onNavigateToAnimal,
   onNavigateToCreateAnimal,
   onNavigateToDashboard,
+  onNavigateToAlerts,
   onNavigateToConsultation,
 }: AnimalListScreenProps) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -226,13 +228,13 @@ export function AnimalListScreen({
             <PawPrint color={colors.primary} size={22} strokeWidth={2.5} />
             <Text style={[styles.tabLabel, styles.tabLabelActive]}>Animais</Text>
           </View>
-          <View style={styles.tabItem}>
+          <Pressable accessibilityRole="tab" onPress={onNavigateToAlerts} style={styles.tabItem}>
             <View>
               <Bell color={colors.muted} size={22} />
               <View style={styles.tabBadge} />
             </View>
             <Text style={styles.tabLabel}>Alertas</Text>
-          </View>
+          </Pressable>
           <Pressable accessibilityRole="tab" onPress={onNavigateToConsultation} style={styles.tabItem}>
             <Search color={colors.muted} size={22} />
             <Text style={styles.tabLabel}>Consulta</Text>

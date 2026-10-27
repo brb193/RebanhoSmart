@@ -9,6 +9,7 @@ import { DashboardScreen } from './src/components/DashboardScreen';
 import { AnimalListScreen, MOCK_ANIMALS, type Animal } from './src/components/AnimalListScreen';
 import { AnimalProfileScreen, type AnimalProfile } from './src/components/AnimalProfileScreen';
 import { SmartConsultationScreen } from './src/components/SmartConsultationScreen';
+import { AlertsScreen, MOCK_ALERTS, type AlertItem } from './src/components/AlertsScreen';
 import {
   HandlingRegistrationScreen,
   type HandlingAnimal,
@@ -16,7 +17,7 @@ import {
 } from './src/components/HandlingRegistrationScreen';
 import { colors } from './src/theme';
 
-type AppScreen = 'auth' | 'dashboard' | 'animals' | 'animal-registration' | 'animal-profile' | 'handling-registration' | 'smart-consultation';
+type AppScreen = 'auth' | 'dashboard' | 'animals' | 'animal-registration' | 'animal-profile' | 'handling-registration' | 'smart-consultation' | 'alerts';
 
 const HANDLING_ANIMALS: HandlingAnimal[] = MOCK_ANIMALS.map((animal) => ({
   id: animal.id,
@@ -65,6 +66,8 @@ export default function App() {
   const [editingAnimal, setEditingAnimal] = useState<AnimalInput | undefined>();
   const [selectedAnimal, setSelectedAnimal] = useState<AnimalProfile>(MIMOSA_PROFILE);
   const [, setHandlingRecords] = useState<HandlingFormData[]>([]);
+  const [alerts, setAlerts] = useState<AlertItem[]>(MOCK_ALERTS);
+  const [selectedAlertId, setSelectedAlertId] = useState<string | null>(null);
   const [fontsLoaded] = useFonts({
     Inter_400Regular: require('@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf'),
     Inter_500Medium: require('@expo-google-fonts/inter/500Medium/Inter_500Medium.ttf'),
@@ -242,11 +245,13 @@ export default function App() {
       {screen === 'dashboard' && (
         <DashboardScreen
           onNavigateToAnimals={() => setScreen('animals')}
+          onNavigateToAlerts={() => setScreen('alerts')}
           onNavigateToConsultation={() => setScreen('smart-consultation')}
         />
       )}
       {screen === 'animals' && (
         <AnimalListScreen
+          onNavigateToAlerts={() => setScreen('alerts')}
           onNavigateToConsultation={() => setScreen('smart-consultation')}
           onNavigateToDashboard={() => setScreen('dashboard')}
           onNavigateToAnimal={handleOpenAnimal}
@@ -286,10 +291,26 @@ export default function App() {
       {screen === 'smart-consultation' && (
         <SmartConsultationScreen
           onTabChange={(tabIndex) => {
-            if (tabIndex === 0 || tabIndex === 2) setScreen('dashboard');
+            if (tabIndex === 0) setScreen('dashboard');
+            if (tabIndex === 2) setScreen('alerts');
             if (tabIndex === 1) setScreen('animals');
             if (tabIndex === 3) setScreen('smart-consultation');
           }}
+        />
+      )}
+      {screen === 'alerts' && (
+        <AlertsScreen
+          alerts={alerts}
+          onClearSelectedAlert={() => setSelectedAlertId(null)}
+          onResolveAlert={(alertId) => setAlerts((current) => current.filter((alert) => alert.id !== alertId))}
+          onSelectAlert={(handlingId) => setSelectedAlertId(handlingId)}
+          onTabChange={(tabIndex) => {
+            if (tabIndex === 0) setScreen('dashboard');
+            if (tabIndex === 1) setScreen('animals');
+            if (tabIndex === 2) setScreen('alerts');
+            if (tabIndex === 3) setScreen('smart-consultation');
+          }}
+          selectedAlertId={selectedAlertId}
         />
       )}
     </>
