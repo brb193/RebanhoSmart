@@ -8,6 +8,7 @@ import { AnimalRegistrationScreen, type AnimalInput } from './src/components/Ani
 import { DashboardScreen } from './src/components/DashboardScreen';
 import { AnimalListScreen, MOCK_ANIMALS, type Animal } from './src/components/AnimalListScreen';
 import { AnimalProfileScreen, type AnimalProfile } from './src/components/AnimalProfileScreen';
+import { SmartConsultationScreen } from './src/components/SmartConsultationScreen';
 import {
   HandlingRegistrationScreen,
   type HandlingAnimal,
@@ -15,7 +16,7 @@ import {
 } from './src/components/HandlingRegistrationScreen';
 import { colors } from './src/theme';
 
-type AppScreen = 'auth' | 'dashboard' | 'animals' | 'animal-registration' | 'animal-profile' | 'handling-registration';
+type AppScreen = 'auth' | 'dashboard' | 'animals' | 'animal-registration' | 'animal-profile' | 'handling-registration' | 'smart-consultation';
 
 const HANDLING_ANIMALS: HandlingAnimal[] = MOCK_ANIMALS.map((animal) => ({
   id: animal.id,
@@ -238,9 +239,16 @@ export default function App() {
     <>
       <StatusBar style="dark" />
       {screen === 'auth' && <AuthScreen onSuccess={() => setScreen('dashboard')} />}
-      {screen === 'dashboard' && <DashboardScreen onNavigateToAnimals={() => setScreen('animals')} />}
+      {screen === 'dashboard' && (
+        <DashboardScreen
+          onNavigateToAnimals={() => setScreen('animals')}
+          onNavigateToConsultation={() => setScreen('smart-consultation')}
+        />
+      )}
       {screen === 'animals' && (
         <AnimalListScreen
+          onNavigateToConsultation={() => setScreen('smart-consultation')}
+          onNavigateToDashboard={() => setScreen('dashboard')}
           onNavigateToAnimal={handleOpenAnimal}
           onNavigateToCreateAnimal={() => {
             setEditingAnimal(undefined);
@@ -273,6 +281,15 @@ export default function App() {
           onConfirmHandlingSave={handleConfirmHandlingSave}
           onReturnToDashboard={() => setScreen('dashboard')}
           onViewHandlingDetails={() => setScreen('dashboard')}
+        />
+      )}
+      {screen === 'smart-consultation' && (
+        <SmartConsultationScreen
+          onTabChange={(tabIndex) => {
+            if (tabIndex === 0 || tabIndex === 2) setScreen('dashboard');
+            if (tabIndex === 1) setScreen('animals');
+            if (tabIndex === 3) setScreen('smart-consultation');
+          }}
         />
       )}
     </>

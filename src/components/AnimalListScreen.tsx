@@ -86,9 +86,16 @@ const CATEGORIES: { label: AnimalCategory; count: number }[] = [
 interface AnimalListScreenProps {
   onNavigateToAnimal: (animal: Animal) => void;
   onNavigateToCreateAnimal: () => void;
+  onNavigateToDashboard: () => void;
+  onNavigateToConsultation: () => void;
 }
 
-export function AnimalListScreen({ onNavigateToAnimal, onNavigateToCreateAnimal }: AnimalListScreenProps) {
+export function AnimalListScreen({
+  onNavigateToAnimal,
+  onNavigateToCreateAnimal,
+  onNavigateToDashboard,
+  onNavigateToConsultation,
+}: AnimalListScreenProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<AnimalCategory>('Todos');
   const [showEmptyState, setShowEmptyState] = useState(false);
@@ -211,11 +218,11 @@ export function AnimalListScreen({ onNavigateToAnimal, onNavigateToCreateAnimal 
 
         {/* Tab Bar Inferior (Mock) */}
         <View style={styles.tabBar}>
-          <View style={styles.tabItem}>
+          <Pressable accessibilityRole="tab" onPress={onNavigateToDashboard} style={styles.tabItem}>
             <LayoutGrid color={colors.muted} size={22} />
             <Text style={styles.tabLabel}>Início</Text>
-          </View>
-          <View style={styles.tabItem}>
+          </Pressable>
+          <View accessibilityRole="tab" style={styles.tabItem}>
             <PawPrint color={colors.primary} size={22} strokeWidth={2.5} />
             <Text style={[styles.tabLabel, styles.tabLabelActive]}>Animais</Text>
           </View>
@@ -226,10 +233,10 @@ export function AnimalListScreen({ onNavigateToAnimal, onNavigateToCreateAnimal 
             </View>
             <Text style={styles.tabLabel}>Alertas</Text>
           </View>
-          <View style={styles.tabItem}>
+          <Pressable accessibilityRole="tab" onPress={onNavigateToConsultation} style={styles.tabItem}>
             <Search color={colors.muted} size={22} />
             <Text style={styles.tabLabel}>Consulta</Text>
-          </View>
+          </Pressable>
         </View>
       </View>
     </SafeAreaView>

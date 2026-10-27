@@ -95,9 +95,13 @@ const NAVIGATION_ITEMS: Array<{ icon: DashboardTab; label: string }> = [
 
 interface DashboardScreenProps {
   onNavigateToAnimals?: () => void;
+  onNavigateToConsultation?: () => void;
 }
 
-export function DashboardScreen({ onNavigateToAnimals: onNavigateToAnimalsProp }: DashboardScreenProps) {
+export function DashboardScreen({
+  onNavigateToAnimals: onNavigateToAnimalsProp,
+  onNavigateToConsultation: onNavigateToConsultationProp,
+}: DashboardScreenProps) {
   const [isOffline, setIsOffline] = useState(false);
   const [activeTab, setActiveTab] = useState<DashboardTab>('home');
 
@@ -111,7 +115,7 @@ export function DashboardScreen({ onNavigateToAnimals: onNavigateToAnimalsProp }
   }
 
   function onNavigateToSmartSearch() {
-    console.log('Navegar para Consulta Rápida');
+    onNavigateToConsultationProp?.();
   }
 
   function onSelectNavigation(tab: DashboardTab) {
