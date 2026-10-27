@@ -10,6 +10,7 @@ import { AnimalListScreen, MOCK_ANIMALS, type Animal } from './src/components/An
 import { AnimalProfileScreen, type AnimalProfile } from './src/components/AnimalProfileScreen';
 import { SmartConsultationScreen } from './src/components/SmartConsultationScreen';
 import { AlertsScreen, MOCK_ALERTS, type AlertItem } from './src/components/AlertsScreen';
+import { SystemStateCatalogScreen } from './src/components/SystemStateCatalogScreen';
 import {
   HandlingRegistrationScreen,
   type HandlingAnimal,
@@ -17,7 +18,7 @@ import {
 } from './src/components/HandlingRegistrationScreen';
 import { colors } from './src/theme';
 
-type AppScreen = 'auth' | 'dashboard' | 'animals' | 'animal-registration' | 'animal-profile' | 'handling-registration' | 'smart-consultation' | 'alerts';
+type AppScreen = 'auth' | 'dashboard' | 'animals' | 'animal-registration' | 'animal-profile' | 'handling-registration' | 'smart-consultation' | 'alerts' | 'system-state-catalog';
 
 const HANDLING_ANIMALS: HandlingAnimal[] = MOCK_ANIMALS.map((animal) => ({
   id: animal.id,
@@ -247,6 +248,7 @@ export default function App() {
           onNavigateToAnimals={() => setScreen('animals')}
           onNavigateToAlerts={() => setScreen('alerts')}
           onNavigateToConsultation={() => setScreen('smart-consultation')}
+          onOpenStateCatalog={() => setScreen('system-state-catalog')}
         />
       )}
       {screen === 'animals' && (
@@ -311,6 +313,14 @@ export default function App() {
             if (tabIndex === 3) setScreen('smart-consultation');
           }}
           selectedAlertId={selectedAlertId}
+        />
+      )}
+      {screen === 'system-state-catalog' && (
+        <SystemStateCatalogScreen
+          initialState="loading"
+          onCancelAction={() => setScreen('dashboard')}
+          onContinueOffline={() => setScreen('dashboard')}
+          onRefreshConflictData={() => console.log('Dados atualizados para revisão.')}
         />
       )}
     </>

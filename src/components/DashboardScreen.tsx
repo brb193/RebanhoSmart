@@ -97,12 +97,14 @@ interface DashboardScreenProps {
   onNavigateToAnimals?: () => void;
   onNavigateToAlerts?: () => void;
   onNavigateToConsultation?: () => void;
+  onOpenStateCatalog?: () => void;
 }
 
 export function DashboardScreen({
   onNavigateToAnimals: onNavigateToAnimalsProp,
   onNavigateToAlerts: onNavigateToAlertsProp,
   onNavigateToConsultation: onNavigateToConsultationProp,
+  onOpenStateCatalog,
 }: DashboardScreenProps) {
   const [isOffline, setIsOffline] = useState(false);
   const [activeTab, setActiveTab] = useState<DashboardTab>('home');
@@ -245,6 +247,11 @@ export function DashboardScreen({
                 <Text style={styles.searchButtonText}>Consulta Rápida</Text>
               </Pressable>
             </View>
+            {onOpenStateCatalog ? (
+              <Pressable accessibilityRole="button" onPress={onOpenStateCatalog} style={styles.stateCatalogLink}>
+                <Text style={styles.stateCatalogLinkText}>Catálogo de estados do sistema</Text>
+              </Pressable>
+            ) : null}
           </View>
         </ScrollView>
 
@@ -349,6 +356,17 @@ const styles = StyleSheet.create({
   actions: {
     gap: 10,
     marginTop: 25,
+  },
+  stateCatalogLink: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  stateCatalogLinkText: {
+    color: colors.muted,
+    fontFamily: fonts.medium,
+    fontSize: 14,
+    textDecorationLine: 'underline',
   },
   attentionCard: {
     borderRadius: 12,
