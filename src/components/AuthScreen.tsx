@@ -15,7 +15,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -24,6 +23,7 @@ import {
 
 import { colors, fonts } from '../theme';
 import { FormInput } from './FormInput';
+import { ScreenSafeArea as SafeAreaView } from './ScreenSafeArea';
 
 type AuthTab = 'login' | 'register';
 type AlertKind = 'error' | 'success' | 'warning';

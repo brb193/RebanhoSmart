@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  Bell,
   Calendar,
   Clock,
-  Home,
   Info,
   MessageSquare,
   PawPrint,
@@ -20,7 +18,6 @@ import {
   ActivityIndicator,
   Keyboard,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -29,6 +26,8 @@ import {
 } from 'react-native';
 
 import { colors, fonts } from '../theme';
+import { BottomNavigation, type AppTabIndex } from './BottomNavigation';
+import { ScreenSafeArea as SafeAreaView } from './ScreenSafeArea';
 
 export interface MessageItem {
   id: string;
@@ -43,10 +42,9 @@ export interface MessageItem {
   }[];
 }
 
-type TabIndex = 0 | 1 | 2 | 3;
-
 interface SmartConsultationScreenProps {
-  onTabChange: (tabIndex: number) => void;
+  alertCount: number;
+  onTabChange: (tabIndex: AppTabIndex) => void;
 }
 
 const QUICK_QUESTIONS = [
@@ -95,7 +93,7 @@ const MOCK_AI_RESPONSES: Record<string, Omit<MessageItem, 'id'>> = {
   },
 };
 
-export function SmartConsultationScreen({ onTabChange }: SmartConsultationScreenProps) {
+export function SmartConsultationScreen({ alertCount, onTabChange }: SmartConsultationScreenProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
@@ -254,7 +252,7 @@ export function SmartConsultationScreen({ onTabChange }: SmartConsultationScreen
           <Text style={styles.consultOnlyNote}>Respostas informativas com base nos registros do rebanho.</Text>
         </View>
 
-        <BottomTabBar activeTab={3} onTabChange={onTabChange} />
+        <BottomNavigation activeTab={3} alertCount={alertCount} onTabChange={onTabChange} />
       </View>
     </SafeAreaView>
   );
@@ -357,39 +355,6 @@ function DetailIcon({ detail }: { detail: string }) {
   return <Clock color={colors.muted} size={17} />;
 }
 
-function BottomTabBar({ activeTab, onTabChange }: { activeTab: TabIndex; onTabChange: (tabIndex: number) => void }) {
-  const tabs = [
-    { icon: Home, label: 'Início' },
-    { icon: PawPrint, label: 'Animais' },
-    { icon: Bell, label: 'Alertas' },
-    { icon: Sparkles, label: 'Consulta' },
-  ];
-
-  return (
-    <View style={styles.tabBar}>
-      {tabs.map((tab, index) => {
-        const Icon = tab.icon;
-        const active = activeTab === index;
-        return (
-          <Pressable
-            accessibilityRole="tab"
-            accessibilityState={{ selected: active }}
-            key={tab.label}
-            onPress={() => onTabChange(index)}
-            style={({ pressed }) => [styles.tabItem, pressed && styles.tabPressed]}
-          >
-            <View>
-              <Icon color={active ? colors.primary : colors.muted} size={22} strokeWidth={active ? 2.5 : 2} />
-              {index === 2 ? <View style={styles.alertDot} /> : null}
-            </View>
-            <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{tab.label}</Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   safeArea: { alignItems: 'center', backgroundColor: colors.page, flex: 1 },
   screen: { backgroundColor: colors.page, flex: 1, maxWidth: 390, width: '100%' },
@@ -449,10 +414,4 @@ const styles = StyleSheet.create({
   sendButtonDisabled: { backgroundColor: '#94A3B8' },
   sendButtonPressed: { backgroundColor: colors.primaryActive },
   consultOnlyNote: { color: colors.muted, fontFamily: fonts.regular, fontSize: 14, textAlign: 'center' },
-  tabBar: { backgroundColor: colors.white, borderTopColor: colors.border, borderTopWidth: 1, flexDirection: 'row', height: 66, paddingBottom: 3 },
-  tabItem: { alignItems: 'center', flex: 1, gap: 3, justifyContent: 'center' },
-  tabPressed: { opacity: 0.7 },
-  tabLabel: { color: colors.muted, fontFamily: fonts.medium, fontSize: 14 },
-  tabLabelActive: { color: colors.primary, fontFamily: fonts.bold },
-  alertDot: { backgroundColor: '#B91C1C', borderColor: colors.white, borderRadius: 5, borderWidth: 1, height: 9, position: 'absolute', right: -4, top: -2, width: 9 },
 });

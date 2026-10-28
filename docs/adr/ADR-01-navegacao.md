@@ -2,7 +2,7 @@
 
 ## Status
 
-Aceita.
+Aceita como arquitetura-alvo. A implementação da etapa de telas ainda usa navegação manual por estado e callbacks; Tabs + Stack não foi configurada.
 
 ## Contexto
 
@@ -33,7 +33,7 @@ O fluxo principal documentado é:
 
 Além disso, o protótipo exige ações de retorno, cancelamento e edição sem perder a lógica do fluxo.
 
-## Decisão
+## Decisão arquitetural
 
 Adotar uma navegação híbrida com **Tabs + Stack**.
 
@@ -63,6 +63,14 @@ A navegação em pilha será utilizada nos fluxos lineares e direcionados, como:
 - feedback de sucesso.
 
 A pilha permite avançar pelas etapas da tarefa e retornar à tela anterior quando necessário.
+
+## Implementação nesta etapa
+
+Para entregar as telas navegáveis sem introduzir uma biblioteca de navegação nesta etapa, a aplicação controla a tela atual pelo estado `screen` no componente raiz `App.tsx`. As telas recebem callbacks para solicitar navegação e os dados necessários por propriedades. O identificador do animal selecionado é mantido no estado do app para abrir o prontuário e continuar o fluxo de manejo.
+
+A navegação inferior é compartilhada pelo componente `BottomNavigation`, com as quatro áreas principais. As telas de formulário, prontuário, alertas e etapas do manejo são renderizadas condicionalmente pelo componente raiz; não existe um navegador Stack ou roteamento tipado nesta implementação.
+
+Essa é uma simplificação de implementação para a etapa de codificação das telas, não uma mudança no fluxo de produto. A arquitetura Tabs + Stack permanece como alvo se a navegação crescer ou se for necessário formalizar histórico, deep links e rotas tipadas.
 
 ## Alternativas consideradas
 
@@ -148,4 +156,4 @@ O projeto aceita a complexidade adicional de combinar dois padrões de navegaç�
 
 ## Resultado
 
-A arquitetura de navegação adotada para o RebanhoSmart será **Tabs + Stack**, com Tabs para navegação de primeiro nível e Stack para fluxos lineares de tarefa.
+A arquitetura-alvo do RebanhoSmart permanece **Tabs + Stack**, com Tabs para navegação de primeiro nível e Stack para fluxos lineares. Nesta etapa, o comportamento foi implementado com estado e callbacks no `App`, mais um componente compartilhado para a navegação inferior. A diferença deve ser considerada antes de declarar Tabs + Stack implementado ou iniciar uma migração para uma biblioteca de navegação.

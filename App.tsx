@@ -1,73 +1,38 @@
 import { useFonts } from '@expo-google-fonts/inter';
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AuthScreen } from './src/components/AuthScreen';
 import { AnimalRegistrationScreen, type AnimalInput } from './src/components/AnimalRegistrationScreen';
 import { DashboardScreen } from './src/components/DashboardScreen';
-import { AnimalListScreen, MOCK_ANIMALS, type Animal } from './src/components/AnimalListScreen';
+import { AnimalListScreen, type Animal } from './src/components/AnimalListScreen';
 import { AnimalProfileScreen, type AnimalProfile } from './src/components/AnimalProfileScreen';
 import { SmartConsultationScreen } from './src/components/SmartConsultationScreen';
-import { AlertsScreen, MOCK_ALERTS, type AlertItem } from './src/components/AlertsScreen';
+import { AlertsScreen, type AlertItem } from './src/components/AlertsScreen';
+import type { ListLoadStatus } from './src/components/ListLoadState';
 import { SystemStateCatalogScreen } from './src/components/SystemStateCatalogScreen';
 import {
   HandlingRegistrationScreen,
   type HandlingAnimal,
   type HandlingFormData,
 } from './src/components/HandlingRegistrationScreen';
+import { loadLocalAppData, saveLocalAppData, type LocalAppData } from './src/storage/localData';
 import { colors } from './src/theme';
 
 type AppScreen = 'auth' | 'dashboard' | 'animals' | 'animal-registration' | 'animal-profile' | 'handling-registration' | 'smart-consultation' | 'alerts' | 'system-state-catalog';
 
-const HANDLING_ANIMALS: HandlingAnimal[] = MOCK_ANIMALS.map((animal) => ({
-  id: animal.id,
-  tagNumber: animal.brinco,
-  name: animal.nome,
-  category: animal.categoria === 'Vacas'
-    ? 'Vaca'
-    : animal.categoria === 'Novilhas'
-      ? 'Novilha'
-      : animal.categoria === 'Bezerros'
-        ? 'Bezerro'
-        : 'Touro',
-  breed: animal.raca,
-  hasPendingAlert: animal.status !== 'Em dia',
-}));
-
-const MIMOSA_PROFILE: AnimalProfile = {
-  tagNumber: '#024',
-  name: 'Mimosa',
-  photoUri: 'https://images.unsplash.com/photo-1516467508483-a7212febe31a?auto=format&fit=crop&w=900&q=80',
-  category: 'Vaca',
-  breed: 'Holandesa',
-  gender: 'Fêmea',
-  birthDate: '12/04/2021',
-  origin: 'Nascido no Local',
-  status: 'Ativa',
-  currentWeight: 420,
-  lastWeightDate: '18/09/2026',
-  nextHandling: {
-    title: 'Vacinação Febre Aftosa',
-    date: '25/09/2026',
-    daysNotice: 'Em 2 dias',
-  },
-  history: [
-    { id: 'weight-18-09-2026', type: 'weight', title: 'Pesagem', date: '18/09/2026', details: '420 kg', status: 'Concluído' },
-    { id: 'deworming-10-08-2026', type: 'deworming', title: 'Vermifugação', date: '10/08/2026', status: 'Realizado' },
-    { id: 'vaccine-15-05-2026', type: 'vaccine', title: 'Vacinação Febre Aftosa', date: '15/05/2026', status: 'Realizado' },
-    { id: 'breeding-20-02-2026', type: 'breeding', title: 'Inseminação / Cobertura', date: '20/02/2026', status: 'Realizado' },
-    { id: 'weight-10-01-2026', type: 'weight', title: 'Pesagem', date: '10/01/2026', details: '395 kg', status: 'Concluído' },
-  ],
-  notes: 'Animal manso, com boa adaptação à ordenha.',
-};
-
 export default function App() {
   const [screen, setScreen] = useState<AppScreen>('auth');
   const [editingAnimal, setEditingAnimal] = useState<AnimalInput | undefined>();
-  const [selectedAnimal, setSelectedAnimal] = useState<AnimalProfile>(MIMOSA_PROFILE);
-  const [, setHandlingRecords] = useState<HandlingFormData[]>([]);
-  const [alerts, setAlerts] = useState<AlertItem[]>(MOCK_ALERTS);
+  const [selectedAnimalId, setSelectedAnimalId] = useState<string | null>(null);
+  const [localData, setLocalData] = useState<LocalAppData | null>(null);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [listLoadStatus, setListLoadStatus] = useState<ListLoadStatus>('ready');
+  const [listRetryToken, setListRetryToken] = useState(0);
+  const dataRef = useRef<LocalAppData | null>(null);
+  const writeQueueRef = useRef<Promise<void>>(Promise.resolve());
   const [selectedAlertId, setSelectedAlertId] = useState<string | null>(null);
   const [fontsLoaded] = useFonts({
     Inter_400Regular: require('@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf'),
@@ -76,7 +41,96 @@ export default function App() {
     Inter_700Bold: require('@expo-google-fonts/inter/700Bold/Inter_700Bold.ttf'),
   });
 
-  if (!fontsLoaded) {
+  useEffect(() => {
+    let isMounted = true;
+
+    loadLocalAppData()
+      .then((loadedData) => {
+        if (!isMounted) return;
+        dataRef.current = loadedData;
+        setLocalData(loadedData);
+        setLoadError(false);
+      })
+      .catch((error: unknown) => {
+        console.error('Não foi possível carregar os dados locais.', error);
+        if (isMounted) setLoadError(true);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingData(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (screen !== 'animals' && screen !== 'alerts') return;
+
+    let isMounted = true;
+    setListLoadStatus('loading');
+
+    loadLocalAppData()
+      .then((loadedData) => {
+        if (!isMounted) return;
+        dataRef.current = loadedData;
+        setLocalData(loadedData);
+        setListLoadStatus('ready');
+      })
+      .catch((error: unknown) => {
+        console.error(`Não foi possível carregar a lista de ${screen}.`, error);
+        if (isMounted) setListLoadStatus('error');
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [screen, listRetryToken]);
+
+  function retryLoadData() {
+    setIsLoadingData(true);
+    setLoadError(false);
+    loadLocalAppData()
+      .then((loadedData) => {
+        dataRef.current = loadedData;
+        setLocalData(loadedData);
+      })
+      .catch((error: unknown) => {
+        console.error('Não foi possível carregar os dados locais.', error);
+        setLoadError(true);
+      })
+      .finally(() => setIsLoadingData(false));
+  }
+
+  function retryCurrentList() {
+    setListRetryToken((current) => current + 1);
+  }
+
+  function persistData(update: (current: LocalAppData) => LocalAppData): Promise<boolean> {
+    const operation = writeQueueRef.current.then(async () => {
+      const current = dataRef.current;
+      if (!current) return false;
+
+      const next = update(current);
+      await saveLocalAppData(next);
+      dataRef.current = next;
+      setLocalData(next);
+      return true;
+    });
+
+    const result = operation.catch((error: unknown) => {
+      console.error('Não foi possível salvar os dados locais.', error);
+      Alert.alert(
+        'Não foi possível salvar',
+        'A alteração não foi gravada no aparelho. Tente novamente.',
+      );
+      return false;
+    });
+    writeQueueRef.current = result.then(() => undefined);
+    return result;
+  }
+
+  if (!fontsLoaded || isLoadingData) {
     return (
       <View style={styles.loadingScreen}>
         <ActivityIndicator color={colors.primary} size="large" />
@@ -84,58 +138,85 @@ export default function App() {
     );
   }
 
-  function handleSaveAnimal(data: AnimalInput) {
-    if (!editingAnimal) {
-      setScreen('animals');
-      return;
-    }
+  if (loadError || !localData) {
+    return (
+      <View style={styles.loadingScreen}>
+        <Text style={styles.loadErrorTitle}>Não foi possível carregar os dados salvos.</Text>
+        <Pressable accessibilityRole="button" onPress={retryLoadData} style={styles.retryButton}>
+          <Text style={styles.retryButtonText}>Tentar novamente</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
-    setSelectedAnimal((current) => ({
-      ...current,
-      birthDate: data.birthDate || current.birthDate,
-      breed: data.breed,
-      category: data.category,
-      gender: data.gender,
-      name: data.name,
-      notes: data.notes,
-      origin: data.origin,
-      photoUri: data.photoUri,
-      status: data.status === 'Ativo' ? 'Ativa' : 'Inativa',
-      tagNumber: data.tagNumber,
-    }));
+  const appData = localData;
+  const selectedAnimal = selectedAnimalId ? appData.profiles[selectedAnimalId] : undefined;
+  const handlingAnimals: HandlingAnimal[] = appData.animals.map((animal) => ({
+    id: animal.id,
+    tagNumber: animal.brinco,
+    name: animal.nome,
+    category: animal.categoria === 'Vacas'
+      ? 'Vaca'
+      : animal.categoria === 'Novilhas'
+        ? 'Novilha'
+        : animal.categoria === 'Bezerros'
+          ? 'Bezerro'
+          : 'Touro',
+    breed: animal.raca,
+    hasPendingAlert: animal.status !== 'Em dia',
+  }));
+
+  async function handleSaveAnimal(data: AnimalInput): Promise<boolean> {
+    const isEditing = editingAnimal !== undefined;
+    const animalId = isEditing && selectedAnimalId ? selectedAnimalId : `animal-${Date.now()}`;
+    const saved = await persistData((current) => {
+      const existingAnimal = current.animals.find((animal) => animal.id === animalId);
+      const listAnimal: Animal = {
+        id: animalId,
+        brinco: data.tagNumber,
+        nome: data.name,
+        categoria: categoryToListCategory(data.category),
+        raca: data.breed,
+        status: existingAnimal?.status ?? 'Em dia',
+      };
+      const profile: AnimalProfile = {
+        ...(current.profiles[animalId] ?? createEmptyProfile(data)),
+        birthDate: data.birthDate ?? '',
+        breed: data.breed,
+        category: data.category,
+        gender: data.gender,
+        name: data.name,
+        notes: data.notes,
+        origin: data.origin,
+        photoUri: data.photoUri,
+        status: data.status === 'Ativo' ? 'Ativa' : 'Inativa',
+        tagNumber: data.tagNumber,
+      };
+
+      return {
+        ...current,
+        animals: existingAnimal
+          ? current.animals.map((animal) => animal.id === animalId ? listAnimal : animal)
+          : [...current.animals, listAnimal],
+        profiles: { ...current.profiles, [animalId]: profile },
+      };
+    });
+    if (!saved) return false;
+    setSelectedAnimalId(animalId);
     setEditingAnimal(undefined);
-    setScreen('animal-profile');
+    setScreen(isEditing ? 'animal-profile' : 'animals');
+    return true;
   }
 
   function handleOpenAnimal(animal: Animal) {
-    if (animal.brinco === MIMOSA_PROFILE.tagNumber) {
-      setSelectedAnimal((current) =>
-        current.tagNumber === MIMOSA_PROFILE.tagNumber ? current : MIMOSA_PROFILE,
-      );
-    } else {
-      setSelectedAnimal({
-        ...MIMOSA_PROFILE,
-        tagNumber: animal.brinco,
-        name: animal.nome,
-        category: animal.categoria === 'Vacas'
-          ? 'Vaca'
-          : animal.categoria === 'Novilhas'
-            ? 'Novilha'
-            : animal.categoria === 'Bezerros'
-              ? 'Bezerro'
-              : 'Touro',
-        breed: animal.raca,
-        gender: animal.categoria === 'Touros' ? 'Macho' : 'Fêmea',
-        photoUri: null,
-      });
-    }
-
+    setSelectedAnimalId(animal.id);
     setScreen('animal-profile');
   }
 
   function handleEditAnimal(tagNumber: string) {
-    if (tagNumber !== selectedAnimal.tagNumber) return;
+    if (!selectedAnimal || tagNumber !== selectedAnimal.tagNumber) return;
 
+    setSelectedAnimalId(appData.animals.find((animal) => animal.brinco === tagNumber)?.id ?? null);
     setEditingAnimal({
       tagNumber: selectedAnimal.tagNumber,
       name: selectedAnimal.name,
@@ -156,18 +237,31 @@ export default function App() {
     setScreen('animal-registration');
   }
 
-  function handleDeleteAnimal(tagNumber: string) {
-    console.log('Animal excluído:', tagNumber);
+  async function handleDeleteAnimal(tagNumber: string): Promise<boolean> {
+    const animalId = appData.animals.find((animal) => animal.brinco === tagNumber)?.id;
+    if (!animalId) return false;
+
+    const saved = await persistData((current) => {
+      const { [animalId]: _deletedProfile, ...profiles } = current.profiles;
+      return {
+        ...current,
+        animals: current.animals.filter((animal) => animal.id !== animalId),
+        profiles,
+      };
+    });
+    if (!saved) return false;
+    setSelectedAnimalId(null);
     setEditingAnimal(undefined);
     setScreen('animals');
+    return true;
   }
 
   function handleCancelAnimalForm() {
     setScreen(editingAnimal ? 'animal-profile' : 'animals');
   }
 
-  function handleSaveWeight(weight: number, date: string) {
-    console.log('Pesagem salva:', { weight, date });
+  async function handleSaveWeight(weight: number, date: string): Promise<boolean> {
+    if (!selectedAnimalId) return false;
     const item = {
       id: `weight-${Date.now()}`,
       type: 'weight' as const,
@@ -177,26 +271,36 @@ export default function App() {
       status: 'Concluído' as const,
     };
 
-    setSelectedAnimal((current) => {
-      const history = [...current.history, item].sort(
+    return persistData((current) => {
+      const profile = current.profiles[selectedAnimalId];
+      if (!profile) return current;
+      const history = [...profile.history, item].sort(
         (first, second) => dateValue(second.date) - dateValue(first.date),
       );
-      const isMostRecentWeight = dateValue(date) >= dateValue(current.lastWeightDate);
-
+      const isMostRecentWeight = !profile.lastWeightDate
+        || profile.lastWeightDate === '—'
+        || dateValue(date) >= dateValue(profile.lastWeightDate);
       return {
         ...current,
-        history,
-        ...(isMostRecentWeight ? { currentWeight: weight, lastWeightDate: date } : {}),
+        profiles: {
+          ...current.profiles,
+          [selectedAnimalId]: {
+            ...profile,
+            history,
+            ...(isMostRecentWeight ? { currentWeight: weight, lastWeightDate: date } : {}),
+          },
+        },
       };
     });
   }
 
   function handleNavigateToHandling(tagNumber: string) {
-    if (tagNumber === selectedAnimal.tagNumber) setScreen('handling-registration');
+    if (tagNumber === selectedAnimal?.tagNumber) setScreen('handling-registration');
   }
 
-  function handleConfirmHandlingSave(formData: HandlingFormData) {
-    setHandlingRecords((current) => [...current, formData]);
+  async function handleConfirmHandlingSave(formData: HandlingFormData): Promise<boolean> {
+    const handlingId = `handling-${Date.now()}`;
+    const handlingDate = formatIsoDate(formData.scheduledDate);
     const typeByTitle: Record<HandlingFormData['type'], AnimalProfile['history'][number]['type']> = {
       Vacinação: 'vaccine',
       Vermifugação: 'deworming',
@@ -205,36 +309,40 @@ export default function App() {
       Secagem: 'drying',
     };
 
-    setSelectedAnimal((current) => {
-      if (!formData.targetAnimalIds.some((id) =>
-        HANDLING_ANIMALS.find((animal) => animal.id === id)?.tagNumber === current.tagNumber,
-      )) {
-        return current;
+    return persistData((current) => {
+      const profiles = { ...current.profiles };
+      for (const animalId of formData.targetAnimalIds) {
+        const profile = profiles[animalId];
+        if (!profile) continue;
+
+        const item = {
+          id: handlingId,
+          type: typeByTitle[formData.type],
+          title: formData.type,
+          date: handlingDate,
+          status: formData.status === 'Realizado' ? 'Realizado' as const : 'Agendado' as const,
+          details: formData.notes || undefined,
+        };
+        profiles[animalId] = {
+          ...profile,
+          history: [...profile.history, item].sort(
+            (first, second) => dateValue(second.date) - dateValue(first.date),
+          ),
+          ...(formData.status === 'Agendado'
+            ? {
+                nextHandling: {
+                  title: formData.type,
+                  date: handlingDate,
+                  daysNotice: formatDaysNotice(handlingDate),
+                },
+              }
+            : {}),
+        };
       }
-
-      const item = {
-        id: `handling-${Date.now()}`,
-        type: typeByTitle[formData.type],
-        title: formData.type,
-        date: formatIsoDate(formData.scheduledDate),
-        status: formData.status === 'Realizado' ? 'Realizado' as const : 'Agendado' as const,
-        details: formData.notes || undefined,
-      };
-
       return {
         ...current,
-        history: [...current.history, item].sort(
-          (first, second) => dateValue(second.date) - dateValue(first.date),
-        ),
-        ...(formData.status === 'Agendado'
-          ? {
-              nextHandling: {
-                title: formData.type,
-                date: formatIsoDate(formData.scheduledDate),
-                daysNotice: formatDaysNotice(formatIsoDate(formData.scheduledDate)),
-              },
-            }
-          : {}),
+        handlingRecords: [...current.handlingRecords, formData],
+        profiles,
       };
     });
   }
@@ -245,6 +353,9 @@ export default function App() {
       {screen === 'auth' && <AuthScreen onSuccess={() => setScreen('dashboard')} />}
       {screen === 'dashboard' && (
         <DashboardScreen
+          animals={appData.animals}
+          alerts={appData.alerts}
+          onNavigateToDashboard={() => setScreen('dashboard')}
           onNavigateToAnimals={() => setScreen('animals')}
           onNavigateToAlerts={() => setScreen('alerts')}
           onNavigateToConsultation={() => setScreen('smart-consultation')}
@@ -253,6 +364,10 @@ export default function App() {
       )}
       {screen === 'animals' && (
         <AnimalListScreen
+          animals={appData.animals}
+          alertCount={appData.alerts.length}
+          loadStatus={listLoadStatus}
+          onRetryLoad={retryCurrentList}
           onNavigateToAlerts={() => setScreen('alerts')}
           onNavigateToConsultation={() => setScreen('smart-consultation')}
           onNavigateToDashboard={() => setScreen('dashboard')}
@@ -270,7 +385,7 @@ export default function App() {
           onSaveAnimal={handleSaveAnimal}
         />
       )}
-      {screen === 'animal-profile' && (
+      {screen === 'animal-profile' && selectedAnimal && (
         <AnimalProfileScreen
           animal={selectedAnimal}
           onBack={() => setScreen('animals')}
@@ -282,8 +397,8 @@ export default function App() {
       )}
       {screen === 'handling-registration' && (
         <HandlingRegistrationScreen
-          animals={HANDLING_ANIMALS}
-          initialAnimalId={HANDLING_ANIMALS.find((animal) => animal.tagNumber === selectedAnimal.tagNumber)?.id || ''}
+          animals={handlingAnimals}
+          initialAnimalId={handlingAnimals.find((animal) => animal.tagNumber === selectedAnimal?.tagNumber)?.id || ''}
           onCancel={() => setScreen('animal-profile')}
           onConfirmHandlingSave={handleConfirmHandlingSave}
           onReturnToDashboard={() => setScreen('dashboard')}
@@ -292,6 +407,7 @@ export default function App() {
       )}
       {screen === 'smart-consultation' && (
         <SmartConsultationScreen
+          alertCount={appData.alerts.length}
           onTabChange={(tabIndex) => {
             if (tabIndex === 0) setScreen('dashboard');
             if (tabIndex === 2) setScreen('alerts');
@@ -302,9 +418,14 @@ export default function App() {
       )}
       {screen === 'alerts' && (
         <AlertsScreen
-          alerts={alerts}
+          alerts={appData.alerts}
+          loadStatus={listLoadStatus}
+          onRetryLoad={retryCurrentList}
           onClearSelectedAlert={() => setSelectedAlertId(null)}
-          onResolveAlert={(alertId) => setAlerts((current) => current.filter((alert) => alert.id !== alertId))}
+          onResolveAlert={(alertId) => persistData((current) => ({
+            ...current,
+            alerts: current.alerts.filter((alert) => alert.id !== alertId),
+          }))}
           onSelectAlert={(handlingId) => setSelectedAlertId(handlingId)}
           onTabChange={(tabIndex) => {
             if (tabIndex === 0) setScreen('dashboard');
@@ -329,6 +450,31 @@ export default function App() {
 
 function formatWeight(weight: number) {
   return Number.isInteger(weight) ? String(weight) : weight.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+}
+
+function categoryToListCategory(category: AnimalInput['category']): Animal['categoria'] {
+  if (category === 'Vaca') return 'Vacas';
+  if (category === 'Novilha') return 'Novilhas';
+  if (category === 'Bezerro') return 'Bezerros';
+  return 'Touros';
+}
+
+function createEmptyProfile(animal: AnimalInput): AnimalProfile {
+  return {
+    tagNumber: animal.tagNumber,
+    name: animal.name,
+    photoUri: animal.photoUri,
+    category: animal.category,
+    breed: animal.breed,
+    gender: animal.gender,
+    birthDate: animal.birthDate ?? '',
+    origin: animal.origin,
+    status: animal.status === 'Ativo' ? 'Ativa' : 'Inativa',
+    currentWeight: 0,
+    lastWeightDate: '—',
+    history: [],
+    notes: animal.notes,
+  };
 }
 
 function formatIsoDate(value: string) {
@@ -360,5 +506,21 @@ const styles = StyleSheet.create({
     backgroundColor: colors.page,
     flex: 1,
     justifyContent: 'center',
+  },
+  loadErrorTitle: {
+    color: colors.text,
+    fontSize: 17,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  retryButtonText: {
+    color: colors.white,
+    fontWeight: '600',
   },
 });

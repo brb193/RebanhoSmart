@@ -2,7 +2,6 @@ import { useState } from 'react';
 import {
   AlertTriangle,
   Baby,
-  Bell,
   Calendar,
   CheckCircle2,
   ChevronRight,
@@ -20,22 +19,23 @@ import {
 } from 'lucide-react-native';
 import {
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 
+import type { Animal } from './AnimalListScreen';
+import type { AlertItem } from './AlertsScreen';
+import { BottomNavigation, type AppTabIndex } from './BottomNavigation';
+import { ScreenSafeArea as SafeAreaView } from './ScreenSafeArea';
 import { colors, fonts } from '../theme';
 
-type DashboardTab = 'alerts' | 'animals' | 'home' | 'search';
 type HandlingIcon = 'birth' | 'medicine' | 'vaccine';
 type DeadlineTone = 'calm' | 'soon';
 
 interface HerdCategory {
   color: string;
-  count: number;
   label: string;
 }
 
@@ -50,50 +50,16 @@ interface UpcomingHandling {
 }
 
 const HERD_CATEGORIES: HerdCategory[] = [
-  { label: 'Vacas', count: 18, color: '#2E7D32' },
-  { label: 'Novilhas', count: 8, color: '#558B2F' },
-  { label: 'Bezerros', count: 10, color: '#D97706' },
-  { label: 'Touros', count: 4, color: '#2563EB' },
-];
-
-const UPCOMING_HANDLINGS: UpcomingHandling[] = [
-  {
-    id: 'aftosa',
-    title: 'Vacinação Febre Aftosa',
-    details: '40 animais',
-    date: '25/09/2026',
-    deadline: '2 dias',
-    deadlineTone: 'soon',
-    icon: 'vaccine',
-  },
-  {
-    id: 'vermifugacao',
-    title: 'Vermifugação',
-    details: '18 animais',
-    date: '27/09/2026',
-    deadline: '4 dias',
-    deadlineTone: 'soon',
-    icon: 'medicine',
-  },
-  {
-    id: 'parto-mimosa',
-    title: 'Previsão de Parto',
-    details: '#024 Mimosa',
-    date: '30/09/2026',
-    deadline: '7 dias',
-    deadlineTone: 'calm',
-    icon: 'birth',
-  },
-];
-
-const NAVIGATION_ITEMS: Array<{ icon: DashboardTab; label: string }> = [
-  { icon: 'home', label: 'Início' },
-  { icon: 'animals', label: 'Animais' },
-  { icon: 'alerts', label: 'Alertas' },
-  { icon: 'search', label: 'Consulta' },
+  { label: 'Vacas', color: '#2E7D32' },
+  { label: 'Novilhas', color: '#558B2F' },
+  { label: 'Bezerros', color: '#D97706' },
+  { label: 'Touros', color: '#2563EB' },
 ];
 
 interface DashboardScreenProps {
+  animals: Animal[];
+  alerts: AlertItem[];
+  onNavigateToDashboard?: () => void;
   onNavigateToAnimals?: () => void;
   onNavigateToAlerts?: () => void;
   onNavigateToConsultation?: () => void;
@@ -101,18 +67,34 @@ interface DashboardScreenProps {
 }
 
 export function DashboardScreen({
+  animals,
+  alerts,
+  onNavigateToDashboard,
   onNavigateToAnimals: onNavigateToAnimalsProp,
   onNavigateToAlerts: onNavigateToAlertsProp,
   onNavigateToConsultation: onNavigateToConsultationProp,
   onOpenStateCatalog,
 }: DashboardScreenProps) {
   const [isOffline, setIsOffline] = useState(false);
-  const [activeTab, setActiveTab] = useState<DashboardTab>('home');
-
-  function onNavigateToAnimals() {
-    console.log('Navegar para Animais');
-    onNavigateToAnimalsProp?.();
-  }
+  const herdCategories = HERD_CATEGORIES.map((category) => ({
+    ...category,
+    count: animals.filter((animal) => animal.categoria === category.label).length,
+  }));
+  const delayedAlerts = alerts.filter((alert) => alert.severity === 'delayed');
+  const upcomingAlerts = alerts.filter((alert) => alert.severity === 'upcoming');
+  const upcomingHandlings: UpcomingHandling[] = upcomingAlerts.map((alert) => ({
+    id: alert.handlingId,
+    title: alert.title || alert.handlingType,
+    details: alert.targetSummary,
+    date: formatDueDate(alert.dueDate),
+    deadline: alert.daysNoticeText,
+    deadlineTone: 'calm',
+    icon: alert.handlingType === 'Parto'
+      ? 'birth'
+      : alert.handlingType === 'Vermifugação'
+        ? 'medicine'
+        : 'vaccine',
+  }));
 
   function onNavigateToNewHandling() {
     console.log('Navegar para Novo Manejo');
@@ -122,25 +104,11 @@ export function DashboardScreen({
     onNavigateToConsultationProp?.();
   }
 
-  function onSelectNavigation(tab: DashboardTab) {
-    setActiveTab(tab);
-
-    if (tab === 'animals') {
-      onNavigateToAnimals();
-      return;
-    }
-
-    if (tab === 'search') {
-      onNavigateToSmartSearch();
-      return;
-    }
-
-    if (tab === 'alerts') {
-      onNavigateToAlertsProp?.();
-      return;
-    }
-
-    console.log('Navegar para Início');
+  function onSelectNavigation(tabIndex: AppTabIndex) {
+    if (tabIndex === 0) onNavigateToDashboard?.();
+    if (tabIndex === 1) onNavigateToAnimalsProp?.();
+    if (tabIndex === 2) onNavigateToAlertsProp?.();
+    if (tabIndex === 3) onNavigateToSmartSearch();
   }
 
   return (
@@ -190,11 +158,11 @@ export function DashboardScreen({
               </View>
             </View>
             <View style={styles.herdMetricRow}>
-              <Text style={styles.herdNumber}>40</Text>
+              <Text style={styles.herdNumber}>{animals.length}</Text>
               <Text style={styles.herdLabel}>animais ativos</Text>
             </View>
             <View style={styles.categoryGrid}>
-              {HERD_CATEGORIES.map((category) => (
+              {herdCategories.map((category) => (
                 <View key={category.label} style={styles.categoryItem}>
                   <View style={styles.categoryName}>
                     <View style={[styles.categoryDot, { backgroundColor: category.color }]} />
@@ -212,8 +180,8 @@ export function DashboardScreen({
               <Text style={styles.sectionKicker}>Manejos</Text>
             </View>
             <View style={styles.attentionCards}>
-              <AttentionCard count="3" icon={<Clock color={colors.white} size={20} strokeWidth={2.4} />} label="PRÓXIMOS" tone="soon" />
-              <AttentionCard count="2" icon={<AlertTriangle color={colors.white} size={20} strokeWidth={2.4} />} label="ATRASADOS" tone="late" />
+              <AttentionCard count={String(upcomingAlerts.length)} icon={<Clock color={colors.white} size={20} strokeWidth={2.4} />} label="PRÓXIMOS" tone="soon" />
+              <AttentionCard count={String(delayedAlerts.length)} icon={<AlertTriangle color={colors.white} size={20} strokeWidth={2.4} />} label="ATRASADOS" tone="late" />
             </View>
           </View>
 
@@ -226,16 +194,16 @@ export function DashboardScreen({
               </Pressable>
             </View>
             <View style={styles.handlingList}>
-              {UPCOMING_HANDLINGS.map((handling) => (
+              {upcomingHandlings.map((handling) => (
                 <HandlingRow key={handling.id} handling={handling} />
               ))}
             </View>
           </View>
 
           <View style={styles.actions}>
-            <Pressable accessibilityRole="button" onPress={onNavigateToAnimals} style={({ pressed }) => [styles.animalsButton, pressed && styles.primaryPressed]}>
+            <Pressable accessibilityRole="button" onPress={onNavigateToAnimalsProp} style={({ pressed }) => [styles.animalsButton, pressed && styles.primaryPressed]}>
               <PawPrint color={colors.white} size={21} strokeWidth={2.4} />
-              <Text style={styles.animalsButtonText}>Ver Animais (40)</Text>
+              <Text style={styles.animalsButtonText}>Ver Animais ({animals.length})</Text>
             </Pressable>
             <View style={styles.secondaryActions}>
               <Pressable accessibilityRole="button" onPress={onNavigateToNewHandling} style={({ pressed }) => [styles.newHandlingButton, pressed && styles.terracottaPressed]}>
@@ -255,17 +223,7 @@ export function DashboardScreen({
           </View>
         </ScrollView>
 
-        <View style={styles.bottomNavigation}>
-          {NAVIGATION_ITEMS.map((item) => (
-            <NavigationItem
-              active={activeTab === item.icon}
-              key={item.icon}
-              label={item.label}
-              onPress={() => onSelectNavigation(item.icon)}
-              tab={item.icon}
-            />
-          ))}
-        </View>
+        <BottomNavigation activeTab={0} alertCount={alerts.length} onTabChange={onSelectNavigation} />
       </View>
     </SafeAreaView>
   );
@@ -303,40 +261,12 @@ function HandlingRow({ handling }: { handling: UpcomingHandling }) {
   );
 }
 
-function NavigationItem({ active, label, onPress, tab }: { active: boolean; label: string; onPress: () => void; tab: DashboardTab }) {
-  const Icon = tab === 'home' ? LayoutGrid : tab === 'animals' ? PawPrint : tab === 'alerts' ? Bell : Search;
-
-  return (
-    <Pressable accessibilityRole="tab" accessibilityState={{ selected: active }} onPress={onPress} style={({ pressed }) => [styles.navigationItem, pressed && styles.pressed]}>
-      <View>
-        <Icon color={active ? colors.primary : colors.muted} size={21} strokeWidth={active ? 2.6 : 2.2} />
-        {tab === 'alerts' ? <View style={styles.alertsBadge}><Text style={styles.alertsBadgeText}>2</Text></View> : null}
-      </View>
-      <Text style={[styles.navigationLabel, active && styles.navigationLabelActive]}>{label}</Text>
-    </Pressable>
-  );
+function formatDueDate(value: string) {
+  const [year, month, day] = value.split('-');
+  return `${day}/${month}/${year}`;
 }
 
 const styles = StyleSheet.create({
-  alertsBadge: {
-    alignItems: 'center',
-    backgroundColor: '#B91C1C',
-    borderColor: colors.white,
-    borderRadius: 8,
-    borderWidth: 1.5,
-    height: 16,
-    justifyContent: 'center',
-    position: 'absolute',
-    right: -10,
-    top: -7,
-    width: 16,
-  },
-  alertsBadgeText: {
-    color: colors.white,
-    fontFamily: fonts.bold,
-    fontSize: 9,
-    lineHeight: 12,
-  },
   animalsButton: {
     alignItems: 'center',
     backgroundColor: colors.primary,
@@ -415,15 +345,6 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
     width: 40,
-  },
-  bottomNavigation: {
-    backgroundColor: colors.white,
-    borderColor: colors.border,
-    borderTopWidth: 1,
-    flexDirection: 'row',
-    minHeight: 70,
-    paddingBottom: 4,
-    paddingTop: 4,
   },
   brandDescription: {
     color: colors.muted,
@@ -637,23 +558,6 @@ const styles = StyleSheet.create({
     height: 38,
     justifyContent: 'center',
     width: 38,
-  },
-  navigationItem: {
-    alignItems: 'center',
-    flex: 1,
-    gap: 3,
-    justifyContent: 'center',
-    minHeight: 60,
-  },
-  navigationLabel: {
-    color: colors.muted,
-    fontFamily: fonts.medium,
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  navigationLabelActive: {
-    color: colors.primary,
-    fontFamily: fonts.bold,
   },
   newHandlingButton: {
     alignItems: 'center',

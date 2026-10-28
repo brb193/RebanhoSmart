@@ -1,6 +1,6 @@
 # Diário de Uso de IA — RebanhoSmart
 
-Este documento registra o uso de ferramentas de IA durante a elaboração da Etapa 1 do projeto RebanhoSmart.
+Este documento registra o uso de ferramentas de IA durante a elaboração dos artefatos e da implementação do RebanhoSmart.
 
 A IA foi utilizada como apoio para organização, revisão, comparação de alternativas e geração inicial de textos. As decisões finais foram revisadas e assumidas pelo grupo.
 
@@ -174,6 +174,65 @@ Atende ao tamanho atual do projeto sem adicionar uma biblioteca externa específ
 
 **Consequência aceita:**
 Será necessário evitar contextos muito grandes e manter estados locais dentro das telas quando não precisarem ser compartilhados.
+
+---
+
+## Sessão 9 — Implementação das telas e persistência local
+
+**Objetivo:** transformar as telas demonstrativas em fluxos navegáveis e manter os registros no aparelho para a etapa de codificação.
+
+**Uso da IA:**
+- integração de AsyncStorage com os dados de animais, perfis, históricos, pesagens, manejos e alertas;
+- ligação das ações de cadastro, edição, exclusão e resolução de alerta à persistência local;
+- revisão da exibição dos dados compartilhados no dashboard, lista e perfil;
+- depuração de erros de tipagem e validação da exportação Android do Expo.
+
+**Resultado aproveitado:**
+- módulo de armazenamento local com inicialização demonstrativa única e chave versionada;
+- atualizações da interface após operações de gravação;
+- tratamento explícito de falhas de leitura e gravação.
+
+**Revisão humana:**
+O grupo testou os fluxos no aplicativo e reportou problemas de uso e apresentação para correção. A autenticação e os serviços remotos permaneceram fora do escopo desta etapa.
+
+---
+
+## Sessão 10 — Ajustes de navegação, estados e interface
+
+**Objetivo:** corrigir inconsistências observadas durante o uso das telas.
+
+**Uso da IA:**
+- padronização da navegação inferior e sincronização dos contadores de alertas;
+- ajuste do espaço de conteúdo para não conflitar com a barra de status do Android;
+- separação do estado vazio real da lista do estado de busca sem resultados;
+- conexão de estados de carregamento, vazio e erro das listagens à leitura do armazenamento;
+- checagem de tipos e exportação Android após as alterações.
+
+**Resultado aproveitado:**
+- barra inferior compartilhada entre as telas principais;
+- contagens derivadas dos alertas persistidos;
+- mensagem compacta para buscas sem correspondência e estados de carregamento/erro com nova tentativa.
+
+**Revisão humana:**
+O usuário apontou os conflitos visuais e confirmou que os testes da sessão 2 passaram. A validação do layout em diferentes aparelhos deve continuar sendo feita no dispositivo/emulador.
+
+---
+
+## Sessão 11 — Revisão de arquitetura e execução limpa
+
+**Objetivo:** alinhar instruções de execução e decisões arquiteturais à implementação entregue.
+
+**Uso da IA:**
+- atualização do README com pré-requisitos e comandos de instalação e inicialização;
+- validação de `npm ci`, TypeScript e exportação Android em uma cópia temporária limpa;
+- revisão dos ADRs de navegação, modelagem de dados e gerenciamento de estado, registrando diferenças entre arquitetura planejada e implementação atual.
+
+**Resultado aproveitado:**
+- instruções para executar o projeto a partir de clone limpo;
+- documentação explícita de que Tabs + Stack, Context API e Firestore são decisões-alvo/futuras, enquanto a implementação desta etapa usa navegação por estado/callbacks, estado React no `App` e persistência local AsyncStorage.
+
+**Revisão humana:**
+O usuário confirmou a conclusão dos testes das listagens e conduziu a priorização das entregas. O grupo deve revisar o conteúdo final dos ADRs e do diário antes da submissão.
 
 ---
 

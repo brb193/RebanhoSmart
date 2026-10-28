@@ -2,7 +2,7 @@
 
 ## Status
 
-Aceita.
+Aceita como modelo conceitual para a futura persistência remota. Nesta etapa, os dados são persistidos localmente em AsyncStorage; Firestore ainda não foi integrado.
 
 ## Contexto
 
@@ -30,9 +30,24 @@ O modelo conceitual utilizado pelo projeto considera:
 
 O volume de referência do projeto é de até **400 usuários cadastrados** e uma lista principal com **40 animais** por cenário de teste.
 
+Para a etapa de codificação das telas, o requisito de persistência é local e não inclui autenticação nem sincronização remota. A modelagem Firestore deste ADR descreve o destino remoto previsto, não a implementação atual.
+
 ## Decisão
 
 Adotar uma modelagem no Firestore com **Manejo e ManejoAnimal em coleções separadas**.
+
+Essa decisão se aplica ao armazenamento remoto planejado. A persistência implementada nesta etapa utiliza AsyncStorage e ainda não cria coleções Firestore.
+
+### Persistência implementada nesta etapa
+
+Os dados locais são salvos em uma única chave versionada (`rebanho-smart.local-data.v1`) como JSON, contendo:
+
+- animais;
+- perfis e históricos dos animais, incluindo pesagens;
+- registros de manejo;
+- alertas.
+
+Na primeira execução, o armazenamento é inicializado uma vez com os 40 animais e alertas demonstrativos. Leituras e gravações são locais ao aparelho; não há sincronização, isolamento por usuário autenticado, resolução de conflitos entre dispositivos ou garantias de transação entre múltiplas coleções. Essas limitações são compatíveis com o escopo desta etapa e não substituem as regras futuras de segurança e consistência do Firestore.
 
 Estrutura conceitual:
 
@@ -290,6 +305,6 @@ Se futuramente o relacionamento deixar de ser independente, será necessário co
 
 ## Resultado
 
-A modelagem adotada será baseada em **coleções separadas para `Manejo` e `ManejoAnimal`**, mantendo `Animal` e `Pesagem` também como registros independentes.
+A modelagem-alvo para a futura integração com Firestore será baseada em **coleções separadas para `Manejo` e `ManejoAnimal`**, mantendo `Animal` e `Pesagem` também como registros independentes.
 
-Essa estrutura preserva um único manejo coletivo, permite situação individual por animal e oferece consultas nas duas direções: animais de um manejo e manejos de um animal.
+Essa estrutura preserva um único manejo coletivo, permite situação individual por animal e oferece consultas nas duas direções: animais de um manejo e manejos de um animal. Nesta etapa, a implementação efetiva é local, em AsyncStorage, conforme descrito acima; a modelagem remota ainda não está implementada.

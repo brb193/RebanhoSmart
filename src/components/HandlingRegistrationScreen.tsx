@@ -23,7 +23,6 @@ import {
 import {
   FlatList,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -32,6 +31,7 @@ import {
 } from 'react-native';
 
 import { colors, fonts } from '../theme';
+import { ScreenSafeArea as SafeAreaView } from './ScreenSafeArea';
 
 export type HandlingType = 'Vacinação' | 'Vermifugação' | 'Inseminação' | 'Parto' | 'Secagem';
 export type HandlingScope = 'individual' | 'coletivo';
@@ -64,7 +64,7 @@ interface HandlingRegistrationScreenProps {
   animals: HandlingAnimal[];
   initialAnimalId: string;
   onCancel: () => void;
-  onConfirmHandlingSave: (formData: HandlingFormData) => void;
+  onConfirmHandlingSave: (formData: HandlingFormData) => Promise<boolean>;
   onReturnToDashboard: () => void;
   onViewHandlingDetails: () => void;
 }
@@ -103,6 +103,7 @@ export function HandlingRegistrationScreen({
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('Todos');
   const [formError, setFormError] = useState<string | null>(null);
   const [savedForm, setSavedForm] = useState<HandlingFormData | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const selectedAnimals = useMemo(
     () => animals.filter((animal) => targetAnimalIds.includes(animal.id)),
@@ -147,7 +148,8 @@ export function HandlingRegistrationScreen({
     setStep('review');
   }
 
-  function handleConfirm() {
+  async function handleConfirm() {
+    if (isSaving) return;
     const pendingTags = status === 'Realizado'
       ? selectedAnimals.filter((animal) => pendingAnimalIds.includes(animal.id)).map((animal) => animal.tagNumber)
       : [];
@@ -169,9 +171,13 @@ export function HandlingRegistrationScreen({
         : {}),
     };
 
-    onConfirmHandlingSave(formData);
-    setSavedForm(formData);
-    setStep('success');
+    setIsSaving(true);
+    const saved = await onConfirmHandlingSave(formData);
+    if (saved) {
+      setSavedForm(formData);
+      setStep('success');
+    }
+    setIsSaving(false);
   }
 
   function goBack() {

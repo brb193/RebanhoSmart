@@ -13,13 +13,11 @@ import {
   Info,
   PawPrint,
   Pill,
-  Sparkles,
   Syringe,
   Tag,
 } from 'lucide-react-native';
 import {
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -27,6 +25,9 @@ import {
 } from 'react-native';
 
 import { colors, fonts } from '../theme';
+import { BottomNavigation, type AppTabIndex } from './BottomNavigation';
+import { ListLoadState, type ListLoadStatus } from './ListLoadState';
+import { ScreenSafeArea as SafeAreaView } from './ScreenSafeArea';
 
 export type AlertSeverity = 'delayed' | 'upcoming';
 export type AlertHandlingType = 'Vacinação' | 'Vermifugação' | 'Inseminação' | 'Parto' | 'Secagem';
@@ -107,11 +108,13 @@ export const MOCK_ALERTS: AlertItem[] = [
 
 interface AlertsScreenProps {
   alerts: AlertItem[];
+  loadStatus: ListLoadStatus;
+  onRetryLoad: () => void;
   selectedAlertId: string | null;
   onSelectAlert: (handlingId: string) => void;
   onClearSelectedAlert: () => void;
-  onResolveAlert: (alertId: string) => void;
-  onTabChange: (tabIndex: number) => void;
+  onResolveAlert: (alertId: string) => Promise<boolean>;
+  onTabChange: (tabIndex: AppTabIndex) => void;
 }
 
 const FILTERS: { key: AlertFilter; label: string }[] = [
@@ -122,6 +125,8 @@ const FILTERS: { key: AlertFilter; label: string }[] = [
 
 export function AlertsScreen({
   alerts,
+  loadStatus,
+  onRetryLoad,
   selectedAlertId,
   onSelectAlert,
   onClearSelectedAlert,
@@ -141,9 +146,10 @@ export function AlertsScreen({
   const delayedAlerts = filteredAlerts.filter((alert) => alert.severity === 'delayed');
   const upcomingAlerts = filteredAlerts.filter((alert) => alert.severity === 'upcoming');
 
-  function resolveAlert(alertId: string) {
-    onResolveAlert(alertId);
-    onClearSelectedAlert();
+  async function resolveAlert(alertId: string): Promise<boolean> {
+    const saved = await onResolveAlert(alertId);
+    if (saved) onClearSelectedAlert();
+    return saved;
   }
 
   if (selectedAlert) {
@@ -209,29 +215,33 @@ export function AlertsScreen({
           })}
         </View>
 
-        <ScrollView contentContainerStyle={styles.alertList} showsVerticalScrollIndicator={false}>
-          {delayedAlerts.length > 0 ? (
-            <AlertSection
-              alerts={delayedAlerts}
-              onSelectAlert={onSelectAlert}
-              subtitle="Ações que ultrapassaram a data prevista"
-              title="Manejos Atrasados"
-              tone="delayed"
-            />
-          ) : null}
-          {upcomingAlerts.length > 0 ? (
-            <AlertSection
-              alerts={upcomingAlerts}
-              onSelectAlert={onSelectAlert}
-              subtitle="Atividades programadas para os próximos 7 dias"
-              title="Próximos Manejos"
-              tone="upcoming"
-            />
-          ) : null}
-          {filteredAlerts.length === 0 ? <EmptyAlerts /> : null}
-        </ScrollView>
+        {loadStatus !== 'ready' ? (
+          <ListLoadState onRetry={onRetryLoad} status={loadStatus} />
+        ) : (
+          <ScrollView contentContainerStyle={styles.alertList} showsVerticalScrollIndicator={false}>
+            {delayedAlerts.length > 0 ? (
+              <AlertSection
+                alerts={delayedAlerts}
+                onSelectAlert={onSelectAlert}
+                subtitle="Ações que ultrapassaram a data prevista"
+                title="Manejos Atrasados"
+                tone="delayed"
+              />
+            ) : null}
+            {upcomingAlerts.length > 0 ? (
+              <AlertSection
+                alerts={upcomingAlerts}
+                onSelectAlert={onSelectAlert}
+                subtitle="Atividades programadas para os próximos 7 dias"
+                title="Próximos Manejos"
+                tone="upcoming"
+              />
+            ) : null}
+            {filteredAlerts.length === 0 ? <EmptyAlerts /> : null}
+          </ScrollView>
+        )}
 
-        <BottomTabBar activeTab={2} onTabChange={onTabChange} pendingCount={alerts.length} />
+        <BottomNavigation activeTab={2} alertCount={alerts.length} onTabChange={onTabChange} />
       </View>
     </SafeAreaView>
   );
@@ -312,7 +322,7 @@ function HandlingAlertDetailScreen({
 }: {
   alert: AlertItem;
   onBack: () => void;
-  onResolve: () => void;
+  onResolve: () => Promise<boolean>;
 }) {
   const isDelayed = alert.severity === 'delayed';
   const Icon = alert.handlingType === 'Vermifugação'
@@ -393,49 +403,6 @@ function EmptyAlerts() {
   );
 }
 
-function BottomTabBar({
-  activeTab,
-  onTabChange,
-  pendingCount,
-}: {
-  activeTab: 2;
-  onTabChange: (tabIndex: number) => void;
-  pendingCount: number;
-}) {
-  const tabs = [
-    { icon: Calendar, label: 'Início' },
-    { icon: PawPrint, label: 'Animais' },
-    { icon: Bell, label: 'Alertas' },
-    { icon: Sparkles, label: 'Consulta' },
-  ];
-
-  return (
-    <View style={styles.tabBar}>
-      {tabs.map((tab, index) => {
-        const Icon = tab.icon;
-        const active = activeTab === index;
-        return (
-          <Pressable
-            accessibilityRole="tab"
-            accessibilityState={{ selected: active }}
-            key={tab.label}
-            onPress={() => onTabChange(index)}
-            style={styles.tabItem}
-          >
-            <View>
-              <Icon color={active ? colors.primary : colors.muted} size={22} strokeWidth={active ? 2.5 : 2} />
-              {index === 2 && pendingCount > 0 ? (
-                <View style={styles.tabBadge}><Text style={styles.tabBadgeText}>{pendingCount}</Text></View>
-              ) : null}
-            </View>
-            <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{tab.label}</Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
 function formatDueDate(value: string) {
   const [year, month, day] = value.split('-');
   return `${day}/${month}/${year}`;
@@ -488,12 +455,6 @@ const styles = StyleSheet.create({
   emptyIcon: { alignItems: 'center', backgroundColor: colors.successBackground, borderRadius: 38, height: 76, justifyContent: 'center', marginBottom: 13, width: 76 },
   emptyTitle: { color: colors.text, fontFamily: fonts.semibold, fontSize: 19, lineHeight: 26 },
   emptyDescription: { color: colors.muted, fontFamily: fonts.regular, fontSize: 16, lineHeight: 23, marginTop: 5, textAlign: 'center' },
-  tabBar: { backgroundColor: colors.white, borderTopColor: colors.border, borderTopWidth: 1, flexDirection: 'row', height: 66, paddingBottom: 3 },
-  tabItem: { alignItems: 'center', flex: 1, gap: 3, justifyContent: 'center' },
-  tabLabel: { color: colors.muted, fontFamily: fonts.medium, fontSize: 14 },
-  tabLabelActive: { color: colors.primary, fontFamily: fonts.bold },
-  tabBadge: { alignItems: 'center', backgroundColor: '#B91C1C', borderColor: colors.white, borderRadius: 9, borderWidth: 1, height: 18, justifyContent: 'center', minWidth: 18, paddingHorizontal: 3, position: 'absolute', right: -9, top: -5 },
-  tabBadgeText: { color: colors.white, fontFamily: fonts.bold, fontSize: 11, lineHeight: 14 },
   detailTopBar: { alignItems: 'center', backgroundColor: colors.white, borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: 'row', minHeight: 64, paddingHorizontal: 12 },
   backButton: { alignItems: 'center', height: 48, justifyContent: 'center', width: 48 },
   detailTopTitle: { color: colors.text, flex: 1, fontFamily: fonts.bold, fontSize: 19, textAlign: 'center' },

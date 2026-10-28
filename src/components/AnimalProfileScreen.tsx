@@ -20,7 +20,6 @@ import {
   Modal,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -29,6 +28,7 @@ import {
 } from 'react-native';
 
 import { colors, fonts } from '../theme';
+import { ScreenSafeArea as SafeAreaView } from './ScreenSafeArea';
 
 export interface HistoryItem {
   id: string;
@@ -63,10 +63,10 @@ export interface AnimalProfile {
 interface AnimalProfileScreenProps {
   animal: AnimalProfile;
   onBack: () => void;
-  onDeleteConfirm: (tagNumber: string) => void;
+  onDeleteConfirm: (tagNumber: string) => Promise<boolean>;
   onEdit: (tagNumber: string) => void;
   onNavigateToHandling: (tagNumber: string) => void;
-  onSaveWeight: (weight: number, date: string) => void;
+  onSaveWeight: (weight: number, date: string) => Promise<boolean>;
 }
 
 const HISTORY_ICONS = {
@@ -86,16 +86,16 @@ export function AnimalProfileScreen({
   onNavigateToHandling,
   onSaveWeight,
 }: AnimalProfileScreenProps) {
-  const [history, setHistory] = useState<HistoryItem[]>(animal.history);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
-  const [lastWeight, setLastWeight] = useState({
+  const lastWeight = {
     date: animal.lastWeightDate,
     value: animal.currentWeight,
-  });
+  };
   const [newWeightInput, setNewWeightInput] = useState('');
   const [newWeightDate, setNewWeightDate] = useState(getTodayDate());
   const [weightError, setWeightError] = useState<string | null>(null);
+  const [isSavingWeight, setIsSavingWeight] = useState(false);
 
   function closeWeightModal() {
     setIsWeightModalOpen(false);
@@ -104,7 +104,8 @@ export function AnimalProfileScreen({
     setWeightError(null);
   }
 
-  function handleSaveWeight() {
+  async function handleSaveWeight() {
+    if (isSavingWeight) return;
     const weight = Number(newWeightInput.replace(',', '.'));
     const date = newWeightDate.trim();
 
@@ -118,28 +119,18 @@ export function AnimalProfileScreen({
       return;
     }
 
-    const nextHistoryItem: HistoryItem = {
-      id: `weight-${Date.now()}`,
-      type: 'weight',
-      title: 'Pesagem',
-      date,
-      details: `${formatWeight(weight)} kg`,
-      status: 'Concluído',
-    };
-
-    setHistory((currentHistory) =>
-      [...currentHistory, nextHistoryItem].sort((first, second) => dateValue(second.date) - dateValue(first.date)),
-    );
-    if (dateValue(date) >= dateValue(lastWeight.date)) {
-      setLastWeight({ date, value: weight });
+    setIsSavingWeight(true);
+    const saved = await onSaveWeight(weight, date);
+    if (saved) {
+      closeWeightModal();
+    } else {
+      setIsSavingWeight(false);
     }
-    onSaveWeight(weight, date);
-    closeWeightModal();
   }
 
-  function handleDeleteConfirm() {
-    setIsDeleteModalOpen(false);
-    onDeleteConfirm(animal.tagNumber);
+  async function handleDeleteConfirm() {
+    const deleted = await onDeleteConfirm(animal.tagNumber);
+    if (deleted) setIsDeleteModalOpen(false);
   }
 
   return (
@@ -161,8 +152,9 @@ export function AnimalProfileScreen({
           <View style={styles.topActions}>
             <Pressable
               accessibilityLabel="Editar animal"
+              accessibilityHint="Abre o formulario para editar os dados deste animal"
               accessibilityRole="button"
-              hitSlop={4}
+              hitSlop={6}
               onPress={() => onEdit(animal.tagNumber)}
               style={({ pressed }) => [styles.editButton, pressed && styles.iconPressed]}
             >
@@ -170,8 +162,9 @@ export function AnimalProfileScreen({
             </Pressable>
             <Pressable
               accessibilityLabel="Excluir animal"
+              accessibilityHint="Abre a confirmacao para excluir este animal"
               accessibilityRole="button"
-              hitSlop={4}
+              hitSlop={6}
               onPress={() => setIsDeleteModalOpen(true)}
               style={({ pressed }) => [styles.deleteIconButton, pressed && styles.deleteIconPressed]}
             >
@@ -235,8 +228,14 @@ export function AnimalProfileScreen({
               <Scale color={colors.primary} size={25} strokeWidth={2.2} />
             </View>
             <View style={styles.weightDetails}>
-              <Text style={styles.weightValue}>{formatWeight(lastWeight.value)} kg</Text>
-              <Text style={styles.weightDate}>Registrado em {lastWeight.date}</Text>
+              <Text style={styles.weightValue}>
+                {lastWeight.value > 0 ? `${formatWeight(lastWeight.value)} kg` : 'Sem pesagem registrada'}
+              </Text>
+              <Text style={styles.weightDate}>
+                {lastWeight.date && lastWeight.date !== '—'
+                  ? `Registrado em ${lastWeight.date}`
+                  : 'Cadastre a primeira pesagem do animal.'}
+              </Text>
             </View>
             <Pressable
               accessibilityRole="button"
@@ -270,8 +269,8 @@ export function AnimalProfileScreen({
 
           <SectionTitle icon={Clock} title="Histórico" />
           <View style={styles.historyCard}>
-            {history.map((item, index) => (
-              <HistoryRow isLast={index === history.length - 1} item={item} key={item.id} />
+            {animal.history.map((item, index) => (
+              <HistoryRow isLast={index === animal.history.length - 1} item={item} key={item.id} />
             ))}
           </View>
         </ScrollView>
@@ -292,6 +291,7 @@ export function AnimalProfileScreen({
           date={newWeightDate}
           error={weightError}
           isOpen={isWeightModalOpen}
+          isSaving={isSavingWeight}
           name={animal.name}
           onCancel={closeWeightModal}
           onChangeDate={(value) => {
@@ -386,6 +386,7 @@ function WeightModal({
   date,
   error,
   isOpen,
+  isSaving,
   name,
   onCancel,
   onChangeDate,
@@ -397,6 +398,7 @@ function WeightModal({
   date: string;
   error: string | null;
   isOpen: boolean;
+  isSaving: boolean;
   name?: string;
   onCancel: () => void;
   onChangeDate: (value: string) => void;
@@ -460,8 +462,8 @@ function WeightModal({
           {error ? <Text accessibilityLiveRegion="polite" style={styles.weightError}>{error}</Text> : null}
 
           <View style={styles.modalActions}>
-            <Pressable accessibilityRole="button" onPress={onSave} style={({ pressed }) => [styles.saveWeightButton, pressed && styles.primaryPressed]}>
-              <Text style={styles.saveWeightButtonText}>Salvar pesagem</Text>
+            <Pressable accessibilityRole="button" disabled={isSaving} onPress={onSave} style={({ pressed }) => [styles.saveWeightButton, isSaving && styles.saveWeightButtonDisabled, pressed && styles.primaryPressed]}>
+              <Text style={styles.saveWeightButtonText}>{isSaving ? 'Salvando...' : 'Salvar pesagem'}</Text>
             </Pressable>
             <Pressable accessibilityRole="button" onPress={onCancel} style={({ pressed }) => [styles.modalCancelButton, pressed && styles.modalCancelPressed]}>
               <Text style={styles.modalCancelButtonText}>Cancelar</Text>
@@ -478,6 +480,7 @@ function formatWeight(weight: number) {
 }
 
 function formatAnimalAge(birthDate: string) {
+  if (!birthDate) return '—';
   const [day, month, year] = birthDate.split('/').map(Number);
   const birth = new Date(year, month - 1, day);
   const today = new Date();
@@ -612,9 +615,9 @@ const styles = StyleSheet.create({
     borderColor: colors.errorBorder,
     borderRadius: 10,
     borderWidth: 1,
-    height: 44,
+    height: 48,
     justifyContent: 'center',
-    width: 44,
+    width: 48,
   },
   deleteIconPressed: {
     backgroundColor: '#FECACA',
@@ -634,9 +637,9 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 10,
     borderWidth: 1,
-    height: 44,
+    height: 48,
     justifyContent: 'center',
-    width: 44,
+    width: 48,
   },
   fallbackIcon: {
     alignItems: 'center',
@@ -977,6 +980,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 50,
   },
+  saveWeightButtonDisabled: { opacity: 0.65 },
   saveWeightButtonText: {
     color: colors.white,
     fontFamily: fonts.bold,
@@ -1032,8 +1036,9 @@ const styles = StyleSheet.create({
     lineHeight: 33,
   },
   topActions: {
+    flexShrink: 0,
     flexDirection: 'row',
-    gap: 7,
+    gap: 8,
   },
   topBar: {
     alignItems: 'center',
@@ -1047,10 +1052,12 @@ const styles = StyleSheet.create({
   topBarTitle: {
     color: colors.text,
     flex: 1,
+    flexShrink: 1,
     fontFamily: fonts.bold,
-    fontSize: 18,
+    fontSize: 16,
     lineHeight: 25,
-    marginHorizontal: 6,
+    marginHorizontal: 8,
+    minWidth: 0,
   },
   unitLabel: {
     color: colors.muted,

@@ -1,8 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Bell,
   ChevronRight,
-  LayoutGrid,
   PawPrint,
   Plus,
   Search,
@@ -11,7 +9,6 @@ import {
 import {
   FlatList,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
@@ -20,7 +17,10 @@ import {
 } from 'react-native';
 
 import { colors, fonts } from '../theme';
+import { BottomNavigation, type AppTabIndex } from './BottomNavigation';
 import { AnimalEmptyState } from './AnimalEmptyState';
+import { ListLoadState, type ListLoadStatus } from './ListLoadState';
+import { ScreenSafeArea as SafeAreaView } from './ScreenSafeArea';
 
 type AnimalCategory = 'Todos' | 'Vacas' | 'Novilhas' | 'Bezerros' | 'Touros';
 type SanitaryStatus = 'Em dia' | 'Vacina atrasada' | 'Vermífugo pend.';
@@ -75,15 +75,13 @@ export const MOCK_ANIMALS: Animal[] = [
   })),
 ];
 
-const CATEGORIES: { label: AnimalCategory; count: number }[] = [
-  { label: 'Todos', count: 40 },
-  { label: 'Vacas', count: 18 },
-  { label: 'Novilhas', count: 8 },
-  { label: 'Bezerros', count: 10 },
-  { label: 'Touros', count: 4 },
-];
+const CATEGORIES: AnimalCategory[] = ['Todos', 'Vacas', 'Novilhas', 'Bezerros', 'Touros'];
 
 interface AnimalListScreenProps {
+  animals: Animal[];
+  alertCount: number;
+  loadStatus: ListLoadStatus;
+  onRetryLoad: () => void;
   onNavigateToAnimal: (animal: Animal) => void;
   onNavigateToCreateAnimal: () => void;
   onNavigateToDashboard: () => void;
@@ -92,6 +90,10 @@ interface AnimalListScreenProps {
 }
 
 export function AnimalListScreen({
+  animals,
+  alertCount,
+  loadStatus,
+  onRetryLoad,
   onNavigateToAnimal,
   onNavigateToCreateAnimal,
   onNavigateToDashboard,
@@ -100,12 +102,9 @@ export function AnimalListScreen({
 }: AnimalListScreenProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<AnimalCategory>('Todos');
-  const [showEmptyState, setShowEmptyState] = useState(false);
 
   const filteredAnimals = useMemo(() => {
-    if (showEmptyState) return [];
-
-    return MOCK_ANIMALS.filter((animal) => {
+    return animals.filter((animal) => {
       const matchesSearch =
         animal.brinco.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (animal.nome && animal.nome.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -114,27 +113,33 @@ export function AnimalListScreen({
 
       return matchesSearch && matchesCategory;
     });
-  }, [searchTerm, selectedCategory, showEmptyState]);
+  }, [animals, searchTerm, selectedCategory]);
+
+  const categories = CATEGORIES.map((label) => ({
+    label,
+    count: label === 'Todos'
+      ? animals.length
+      : animals.filter((animal) => animal.categoria === label).length,
+  }));
 
   const onSelectAnimal = (animal: Animal) => onNavigateToAnimal(animal);
+  function onTabChange(tabIndex: AppTabIndex) {
+    if (tabIndex === 0) onNavigateToDashboard();
+    if (tabIndex === 2) onNavigateToAlerts();
+    if (tabIndex === 3) onNavigateToConsultation();
+  }
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.phoneFrame}>
-        {/* Alternador de Teste (Discreto) */}
-        <Pressable 
-          onPress={() => setShowEmptyState(!showEmptyState)}
-          style={styles.devToggle}
-        >
-          <Text style={styles.devToggleText}>
-            Teste: {showEmptyState ? 'Ver Lista Cheia' : 'Ver Estado Vazio'}
-          </Text>
-        </Pressable>
-
         {/* Cabeçalho */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.title}>Animais ({filteredAnimals.length})</Text>
-            <Text style={styles.subtitle}>Plantel ativo cadastrado no aparelho.</Text>
+            <Text style={styles.title}>Animais ({animals.length})</Text>
+            <Text style={styles.subtitle}>
+              {searchTerm || selectedCategory !== 'Todos'
+                ? `${filteredAnimals.length} encontrados • Plantel cadastrado no aparelho`
+                : 'Plantel ativo cadastrado no aparelho.'}
+            </Text>
           </View>
           <Pressable 
             onPress={onNavigateToCreateAnimal}
@@ -171,7 +176,7 @@ export function AnimalListScreen({
             showsHorizontalScrollIndicator={false} 
             contentContainerStyle={styles.filterScroll}
           >
-            {CATEGORIES.map((cat) => (
+            {categories.map((cat) => (
               <Pressable
                 key={cat.label}
                 onPress={() => setSelectedCategory(cat.label)}
@@ -192,8 +197,32 @@ export function AnimalListScreen({
         </View>
 
         {/* Lista ou Estado Vazio */}
-        {filteredAnimals.length === 0 ? (
+        {loadStatus !== 'ready' ? (
+          <View style={styles.listStatus}>
+            <ListLoadState onRetry={onRetryLoad} status={loadStatus} />
+          </View>
+        ) : animals.length === 0 ? (
           <AnimalEmptyState onNavigateToCreateAnimal={onNavigateToCreateAnimal} />
+        ) : filteredAnimals.length === 0 ? (
+          <View style={styles.noResults}>
+            <View style={styles.noResultsIcon}>
+              <Search color={colors.primary} size={26} strokeWidth={2} />
+            </View>
+            <Text style={styles.noResultsTitle}>Nenhum animal encontrado</Text>
+            <Text style={styles.noResultsDescription}>
+              Tente outro brinco ou nome, ou remova os filtros.
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                setSearchTerm('');
+                setSelectedCategory('Todos');
+              }}
+              style={({ pressed }) => [styles.clearFiltersButton, pressed && styles.primaryPressed]}
+            >
+              <Text style={styles.clearFiltersButtonText}>Limpar busca e filtros</Text>
+            </Pressable>
+          </View>
         ) : (
           <View style={styles.listWrapper}>
             <FlatList
@@ -218,28 +247,7 @@ export function AnimalListScreen({
           </View>
         )}
 
-        {/* Tab Bar Inferior (Mock) */}
-        <View style={styles.tabBar}>
-          <Pressable accessibilityRole="tab" onPress={onNavigateToDashboard} style={styles.tabItem}>
-            <LayoutGrid color={colors.muted} size={22} />
-            <Text style={styles.tabLabel}>Início</Text>
-          </Pressable>
-          <View accessibilityRole="tab" style={styles.tabItem}>
-            <PawPrint color={colors.primary} size={22} strokeWidth={2.5} />
-            <Text style={[styles.tabLabel, styles.tabLabelActive]}>Animais</Text>
-          </View>
-          <Pressable accessibilityRole="tab" onPress={onNavigateToAlerts} style={styles.tabItem}>
-            <View>
-              <Bell color={colors.muted} size={22} />
-              <View style={styles.tabBadge} />
-            </View>
-            <Text style={styles.tabLabel}>Alertas</Text>
-          </Pressable>
-          <Pressable accessibilityRole="tab" onPress={onNavigateToConsultation} style={styles.tabItem}>
-            <Search color={colors.muted} size={22} />
-            <Text style={styles.tabLabel}>Consulta</Text>
-          </Pressable>
-        </View>
+        <BottomNavigation activeTab={1} alertCount={alertCount} onTabChange={onTabChange} />
       </View>
     </SafeAreaView>
   );
@@ -299,16 +307,6 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 390,
     backgroundColor: colors.page,
-  },
-  devToggle: {
-    padding: 8,
-    backgroundColor: '#334155',
-    alignItems: 'center',
-  },
-  devToggleText: {
-    color: colors.white,
-    fontFamily: fonts.medium,
-    fontSize: 12,
   },
   header: {
     flexDirection: 'row',
@@ -390,6 +388,49 @@ const styles = StyleSheet.create({
   },
   listWrapper: {
     flex: 1,
+  },
+  listStatus: { flex: 1 },
+  noResults: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+  },
+  noResultsIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.primarySoft,
+    borderRadius: 28,
+    height: 56,
+    justifyContent: 'center',
+    marginBottom: 12,
+    width: 56,
+  },
+  noResultsTitle: {
+    color: colors.text,
+    fontFamily: fonts.bold,
+    fontSize: 18,
+    textAlign: 'center',
+  },
+  noResultsDescription: {
+    color: colors.muted,
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  clearFiltersButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 10,
+    marginTop: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+  },
+  clearFiltersButtonText: {
+    color: colors.white,
+    fontFamily: fonts.semibold,
+    fontSize: 14,
   },
   listContent: {
     paddingHorizontal: 20,
@@ -487,39 +528,5 @@ const styles = StyleSheet.create({
   },
   primaryPressed: {
     backgroundColor: colors.primaryActive,
-  },
-  tabBar: {
-    height: 70,
-    backgroundColor: colors.white,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    flexDirection: 'row',
-    paddingBottom: 5,
-  },
-  tabItem: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 4,
-  },
-  tabLabel: {
-    fontSize: 11,
-    fontFamily: fonts.medium,
-    color: colors.muted,
-  },
-  tabLabelActive: {
-    color: colors.primary,
-    fontFamily: fonts.bold,
-  },
-  tabBadge: {
-    position: 'absolute',
-    top: -2,
-    right: -4,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#B91C1C',
-    borderWidth: 1.5,
-    borderColor: colors.white,
   },
 });

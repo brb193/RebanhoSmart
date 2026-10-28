@@ -17,7 +17,6 @@ import {
   Animated,
   Modal,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -26,6 +25,7 @@ import {
 
 import { MOCK_ANIMALS } from './AnimalListScreen';
 import { colors, fonts } from '../theme';
+import { ScreenSafeArea as SafeAreaView } from './ScreenSafeArea';
 
 export type SystemStateKey =
   | 'loading'

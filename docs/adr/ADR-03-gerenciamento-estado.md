@@ -2,7 +2,7 @@
 
 ## Status
 
-Aceita.
+Revisada para refletir a implementação desta etapa: o estado compartilhado está centralizado no componente raiz `App` e distribuído por propriedades e callbacks. Context API permanece como alternativa futura, não como solução atualmente adotada.
 
 ## Contexto
 
@@ -25,7 +25,7 @@ As alternativas consideradas foram:
 - Zustand;
 - Redux Toolkit.
 
-## Decisão
+## Decisão inicialmente planejada
 
 Adotar a **Context API do React** para o gerenciamento de estado compartilhado do RebanhoSmart.
 
@@ -49,6 +49,14 @@ ManejoContext
 ```
 
 Estados específicos de uma única tela devem continuar sendo mantidos localmente com recursos como `useState`, evitando transformar todo estado da aplicação em estado global.
+
+## Implementação nesta etapa
+
+A aplicação ainda não implementa os contextos listados acima. O componente raiz `App` mantém a tela atual, os dados locais carregados, o animal selecionado e o estado de leitura. As telas recebem os dados e operações por propriedades; estados transitórios de formulário, busca, filtros e modais permanecem em `useState` dentro das respectivas telas.
+
+O armazenamento persistente é encapsulado em `src/storage/localData.ts`, com AsyncStorage. Esse módulo cuida de carregar e salvar os dados, mas não é um gerenciador de estado React: a atualização da interface e a distribuição dos dados continuam sob responsabilidade do `App`.
+
+Para o tamanho e o escopo da etapa, o grupo mantém essa solução simples e adia a Context API. Isso evita adicionar uma camada global sem necessidade imediata; se a árvore de propriedades ou a quantidade de estado compartilhado crescer, a decisão deverá ser reavaliada e contextos pequenos poderão ser introduzidos.
 
 ## Alternativas consideradas
 
@@ -121,25 +129,25 @@ Redux Toolkit fornece uma estrutura mais completa para gerenciamento previsível
 
 Uma aplicação estruturada fortemente em slices, reducers e actions passa a depender desse padrão em vários pontos. Uma futura migração exigiria modificar uma quantidade significativa de código.
 
-## Consequências
+## Consequências da implementação atual
 
 ### Positivas
 
-- Não é necessário adicionar uma biblioteca externa apenas para estado global.
+- Não é necessário adicionar uma biblioteca externa para estado compartilhado.
 - A solução é compatível diretamente com React Native.
-- O grupo trabalha com conceitos já pertencentes ao ecossistema React.
-- Autenticação e outros estados compartilhados podem ser centralizados.
+- O estado de dados e navegação fica visível no componente raiz.
 - Estados locais permanecem próximos das telas que os utilizam.
 
 ### Negativas
 
-- O grupo deverá evitar criar um único contexto contendo todo o estado da aplicação.
-- Contextos muito grandes ou atualizados com frequência podem provocar renderizações desnecessárias.
-- Caso a aplicação cresça significativamente, pode ser necessária uma reorganização dos contextos ou adoção de uma solução especializada.
+- O componente `App` concentra responsabilidades e pode crescer demais.
+- Propriedades e callbacks precisam ser encaminhados manualmente entre componentes.
+- Caso a quantidade de estado compartilhado ou a profundidade de componentes cresça, pode ser necessária uma reorganização em Context API ou outra solução.
+- A autenticação exibida nesta etapa é demonstrativa; não há usuário autenticado persistido.
 
-## Diretriz de uso
+## Diretriz de uso atualizada
 
-A Context API será utilizada somente quando o estado precisar ser compartilhado entre múltiplas telas ou componentes.
+Nesta etapa, o estado compartilhado permanece no `App` e é passado somente às telas que precisam dele. Context API não deve ser descrita como já implementada.
 
 Estados locais devem permanecer locais.
 
@@ -149,15 +157,13 @@ Exemplo:
 Estado usado apenas em CadastroAnimal
 → useState local
 
-Usuário autenticado usado em várias telas
-→ AuthContext
+Dados locais e tela selecionada usados em várias áreas
+→ estado no App + props/callbacks
 
-Dados temporários de um manejo usados em várias etapas
-→ ManejoContext
+Dados temporários usados somente no fluxo de manejo
+→ estado local do fluxo de manejo
 ```
 
 ## Resultado
 
-O RebanhoSmart utilizará **Context API** como solução de gerenciamento de estado compartilhado, combinada com estado local do React nas telas que não precisam compartilhar informações globalmente.
-
-A decisão prioriza simplicidade e baixo acoplamento a bibliotecas externas, aceitando como consequência a necessidade de organizar cuidadosamente os contextos caso a aplicação cresça.
+Nesta etapa, o RebanhoSmart utiliza **estado React no componente raiz `App` para dados compartilhados**, propriedades e callbacks para comunicação com as telas, e `useState` local para estados específicos de cada tela. A Context API foi considerada, mas sua adoção foi adiada. A persistência AsyncStorage é responsabilidade do módulo de armazenamento e não substitui o estado React.

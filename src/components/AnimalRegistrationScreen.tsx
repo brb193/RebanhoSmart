@@ -18,7 +18,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -27,6 +26,7 @@ import {
 } from 'react-native';
 
 import { colors, fonts } from '../theme';
+import { ScreenSafeArea as SafeAreaView } from './ScreenSafeArea';
 
 export interface AnimalInput {
   tagNumber: string;
@@ -44,7 +44,7 @@ export interface AnimalInput {
 interface AnimalRegistrationScreenProps {
   initialAnimal?: AnimalInput;
   onCancel: () => void;
-  onSaveAnimal: (data: AnimalInput) => void;
+  onSaveAnimal: (data: AnimalInput) => Promise<boolean>;
 }
 
 interface AnimalFormState {
@@ -104,6 +104,7 @@ export function AnimalRegistrationScreen({ initialAnimal, onCancel, onSaveAnimal
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [photoUri, setPhotoUri] = useState<string | null>(initialAnimal?.photoUri || null);
   const [showTagError, setShowTagError] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   function updateField(field: FormField, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -121,7 +122,8 @@ export function AnimalRegistrationScreen({ initialAnimal, onCancel, onSaveAnimal
     }));
   }
 
-  function handleSave() {
+  async function handleSave() {
+    if (isSaving) return;
     const tagNumber = form.tagNumber.trim();
 
     if (!tagNumber) {
@@ -142,8 +144,9 @@ export function AnimalRegistrationScreen({ initialAnimal, onCancel, onSaveAnimal
       notes: form.notes.trim() || undefined,
     };
 
-    console.log('Animal salvo:', animal);
-    onSaveAnimal(animal);
+    setIsSaving(true);
+    const saved = await onSaveAnimal(animal);
+    if (!saved) setIsSaving(false);
   }
 
   function handleCancel() {
@@ -537,11 +540,12 @@ export function AnimalRegistrationScreen({ initialAnimal, onCancel, onSaveAnimal
           <View style={styles.footer}>
             <Pressable
               accessibilityRole="button"
+              disabled={isSaving}
               onPress={handleSave}
-              style={({ pressed }) => [styles.saveButton, pressed && styles.saveButtonPressed]}
+              style={({ pressed }) => [styles.saveButton, isSaving && styles.saveButtonDisabled, pressed && styles.saveButtonPressed]}
             >
               <Check color={colors.white} size={21} strokeWidth={2.8} />
-              <Text style={styles.saveButtonText}>Salvar animal</Text>
+              <Text style={styles.saveButtonText}>{isSaving ? 'Salvando...' : 'Salvar animal'}</Text>
             </Pressable>
             <Pressable
               accessibilityRole="button"
@@ -959,6 +963,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 52,
   },
+  saveButtonDisabled: { opacity: 0.65 },
   saveButtonPressed: {
     backgroundColor: colors.primaryActive,
     transform: [{ scale: 0.99 }],
