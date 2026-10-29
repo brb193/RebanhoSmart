@@ -160,8 +160,10 @@ export default function App() {
       : animal.categoria === 'Novilhas'
         ? 'Novilha'
         : animal.categoria === 'Bezerros'
-          ? 'Bezerro'
-          : 'Touro',
+          ? animal.gender === 'Fêmea' ? 'Bezerra' : 'Bezerro'
+          : animal.categoria === 'Garrotes'
+            ? 'Garrote'
+            : 'Touro',
     breed: animal.raca,
     hasPendingAlert: animal.status !== 'Em dia',
   }));
@@ -177,6 +179,8 @@ export default function App() {
         nome: data.name,
         categoria: categoryToListCategory(data.category),
         raca: data.breed,
+        gender: data.gender,
+        ageMonths: data.ageMonths,
         status: existingAnimal?.status ?? 'Em dia',
       };
       const profile: AnimalProfile = {
@@ -185,6 +189,7 @@ export default function App() {
         breed: data.breed,
         category: data.category,
         gender: data.gender,
+        ageMonths: data.ageMonths,
         name: data.name,
         notes: data.notes,
         origin: data.origin,
@@ -223,12 +228,15 @@ export default function App() {
       photoUri: selectedAnimal.photoUri,
       category: selectedAnimal.category === 'Vaca'
         || selectedAnimal.category === 'Novilha'
+        || selectedAnimal.category === 'Bezerra'
         || selectedAnimal.category === 'Bezerro'
+        || selectedAnimal.category === 'Garrote'
         || selectedAnimal.category === 'Touro'
         ? selectedAnimal.category
         : 'Novilha',
       gender: selectedAnimal.gender === 'Macho' ? 'Macho' : 'Fêmea',
       breed: selectedAnimal.breed,
+      ageMonths: selectedAnimal.ageMonths ?? estimateAgeInMonths(selectedAnimal.birthDate),
       birthDate: selectedAnimal.birthDate,
       origin: selectedAnimal.origin === 'Comprado' || selectedAnimal.origin === 'Externo' ? selectedAnimal.origin : 'Nascido no Local',
       status: selectedAnimal.status === 'Ativa' ? 'Ativo' : 'Inativo',
@@ -455,7 +463,8 @@ function formatWeight(weight: number) {
 function categoryToListCategory(category: AnimalInput['category']): Animal['categoria'] {
   if (category === 'Vaca') return 'Vacas';
   if (category === 'Novilha') return 'Novilhas';
-  if (category === 'Bezerro') return 'Bezerros';
+  if (category === 'Garrote') return 'Garrotes';
+  if (category === 'Bezerra' || category === 'Bezerro') return 'Bezerros';
   return 'Touros';
 }
 
@@ -468,6 +477,7 @@ function createEmptyProfile(animal: AnimalInput): AnimalProfile {
     breed: animal.breed,
     gender: animal.gender,
     birthDate: animal.birthDate ?? '',
+    ageMonths: animal.ageMonths,
     origin: animal.origin,
     status: animal.status === 'Ativo' ? 'Ativa' : 'Inativa',
     currentWeight: 0,
@@ -475,6 +485,14 @@ function createEmptyProfile(animal: AnimalInput): AnimalProfile {
     history: [],
     notes: animal.notes,
   };
+}
+
+function estimateAgeInMonths(birthDate: string) {
+  const [day, month, year] = birthDate.split('/').map(Number);
+  if (!day || !month || !year) return 0;
+  const today = new Date();
+  const ageInMonths = (today.getFullYear() - year) * 12 + today.getMonth() - month + 1;
+  return Math.max(0, ageInMonths - (today.getDate() < day ? 1 : 0));
 }
 
 function formatIsoDate(value: string) {

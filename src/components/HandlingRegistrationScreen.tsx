@@ -41,7 +41,7 @@ export interface HandlingAnimal {
   id: string;
   tagNumber: string;
   name?: string;
-  category: 'Vaca' | 'Novilha' | 'Bezerro' | 'Touro';
+  category: 'Vaca' | 'Novilha' | 'Bezerra' | 'Bezerro' | 'Garrote' | 'Touro';
   breed: string;
   hasPendingAlert?: boolean;
 }
@@ -81,7 +81,7 @@ const HANDLING_OPTIONS: { type: HandlingType; icon: HandlingIcon }[] = [
   { type: 'Secagem', icon: Droplets },
 ];
 
-const CATEGORIES: CategoryFilter[] = ['Todos', 'Vaca', 'Novilha', 'Bezerro', 'Touro'];
+const CATEGORIES: CategoryFilter[] = ['Todos', 'Vaca', 'Novilha', 'Bezerra', 'Bezerro', 'Garrote', 'Touro'];
 
 export function HandlingRegistrationScreen({
   animals,

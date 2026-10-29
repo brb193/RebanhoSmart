@@ -53,6 +53,7 @@ const HERD_CATEGORIES: HerdCategory[] = [
   { label: 'Vacas', color: '#2E7D32' },
   { label: 'Novilhas', color: '#558B2F' },
   { label: 'Bezerros', color: '#D97706' },
+  { label: 'Garrotes', color: '#7C3AED' },
   { label: 'Touros', color: '#2563EB' },
 ];
 

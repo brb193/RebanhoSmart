@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import {
   AlertTriangle,
@@ -16,6 +16,7 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -32,9 +33,10 @@ export interface AnimalInput {
   tagNumber: string;
   name?: string;
   photoUri?: string | null;
-  category: 'Vaca' | 'Novilha' | 'Bezerro' | 'Touro';
+  category: 'Vaca' | 'Novilha' | 'Bezerra' | 'Bezerro' | 'Garrote' | 'Touro';
   gender: 'Fêmea' | 'Macho';
   breed: string;
+  ageMonths: number;
   birthDate?: string;
   origin: 'Nascido no Local' | 'Comprado' | 'Externo';
   status: 'Ativo' | 'Inativo';
@@ -48,11 +50,12 @@ interface AnimalRegistrationScreenProps {
 }
 
 interface AnimalFormState {
+  ageMonths: number;
   birthDate: string;
   breed: string;
-  category: AnimalInput['category'];
   customBreed: string;
   gender: AnimalInput['gender'];
+  otherBreedExpanded: boolean;
   name: string;
   notes: string;
   origin: AnimalInput['origin'];
@@ -60,20 +63,24 @@ interface AnimalFormState {
   tagNumber: string;
 }
 
-type FormField = keyof AnimalFormState;
+type FormField = Exclude<keyof AnimalFormState, 'ageMonths' | 'otherBreedExpanded'>;
 
-const CATEGORIES: AnimalInput['category'][] = ['Vaca', 'Novilha', 'Bezerro', 'Touro'];
-const GENDERS: AnimalInput['gender'][] = ['Fêmea', 'Macho'];
-const BREEDS = ['Girolando', 'Holandesa', 'Nelore', 'Jersey', 'Outra'];
+const MIN_BIRTH_YEAR = 2006;
+const MAX_AGE_MONTHS = Math.max(
+  0,
+  (new Date().getFullYear() - MIN_BIRTH_YEAR) * 12 + new Date().getMonth(),
+);
+const BREEDS = ['Nelore', 'Angus', 'Girolando', 'Holandesa'];
 const ORIGINS: AnimalInput['origin'][] = ['Nascido no Local', 'Comprado', 'Externo'];
 const STATUSES: AnimalInput['status'][] = ['Ativo', 'Inativo'];
 
 const INITIAL_FORM: AnimalFormState = {
+  ageMonths: 0,
   birthDate: '',
   breed: 'Girolando',
-  category: 'Vaca',
   customBreed: '',
   gender: 'Fêmea',
+  otherBreedExpanded: false,
   name: '',
   notes: '',
   origin: 'Nascido no Local',
@@ -84,12 +91,15 @@ const INITIAL_FORM: AnimalFormState = {
 function createInitialForm(initialAnimal?: AnimalInput): AnimalFormState {
   if (!initialAnimal) return INITIAL_FORM;
 
+  const isKnownBreed = BREEDS.includes(initialAnimal.breed);
+  const ageMonths = Math.round(Math.min(MAX_AGE_MONTHS, Math.max(0, initialAnimal.ageMonths ?? getAgeInMonths(initialAnimal.birthDate) ?? 0)));
   return {
+    ageMonths,
     birthDate: initialAnimal.birthDate || '',
-    breed: BREEDS.includes(initialAnimal.breed) ? initialAnimal.breed : 'Outra',
-    category: initialAnimal.category,
-    customBreed: BREEDS.includes(initialAnimal.breed) ? '' : initialAnimal.breed,
+    breed: isKnownBreed ? initialAnimal.breed : 'Outra',
+    customBreed: isKnownBreed ? '' : initialAnimal.breed,
     gender: initialAnimal.gender,
+    otherBreedExpanded: !isKnownBreed,
     name: initialAnimal.name || '',
     notes: initialAnimal.notes || '',
     origin: initialAnimal.origin,
@@ -100,6 +110,7 @@ function createInitialForm(initialAnimal?: AnimalInput): AnimalFormState {
 
 export function AnimalRegistrationScreen({ initialAnimal, onCancel, onSaveAnimal }: AnimalRegistrationScreenProps) {
   const [form, setForm] = useState<AnimalFormState>(() => createInitialForm(initialAnimal));
+  const category = classifyAnimal(form.gender, form.ageMonths);
   const [focusedField, setFocusedField] = useState<FormField | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [photoUri, setPhotoUri] = useState<string | null>(initialAnimal?.photoUri || null);
@@ -118,7 +129,34 @@ export function AnimalRegistrationScreen({ initialAnimal, onCancel, onSaveAnimal
     setForm((current) => ({
       ...current,
       breed,
-      customBreed: breed === 'Outra' ? current.customBreed : '',
+      otherBreedExpanded: false,
+    }));
+  }
+
+  function setAgeMonths(ageMonths: number) {
+    const boundedAge = Math.max(0, Math.min(MAX_AGE_MONTHS, Math.round(ageMonths)));
+    setForm((current) => ({
+      ...current,
+      ageMonths: boundedAge,
+      birthDate: estimateBirthDate(boundedAge),
+    }));
+  }
+
+  function updateBirthDate(value: string) {
+    const birthDate = formatBirthDateInput(value);
+    const ageMonths = getAgeInMonths(birthDate);
+    setForm((current) => ({
+      ...current,
+      birthDate,
+      ...(ageMonths === null ? {} : { ageMonths: Math.min(MAX_AGE_MONTHS, ageMonths) }),
+    }));
+  }
+
+  function toggleOtherBreed() {
+    setForm((current) => ({
+      ...current,
+      breed: current.otherBreedExpanded ? 'Girolando' : 'Outra',
+      otherBreedExpanded: !current.otherBreedExpanded,
     }));
   }
 
@@ -131,14 +169,26 @@ export function AnimalRegistrationScreen({ initialAnimal, onCancel, onSaveAnimal
       return;
     }
 
+    if (form.birthDate && (form.birthDate.length !== 10 || getAgeInMonths(form.birthDate) === null)) {
+      Alert.alert('Data de nascimento inválida', 'Informe uma data entre 01/01/2006 e hoje, ou apague o campo para usar somente a idade.');
+      return;
+    }
+
+    const breed = form.breed === 'Outra' ? form.customBreed.trim() : form.breed;
+    if (!breed) {
+      Alert.alert('Raça não informada', 'Digite a raça do animal ou selecione uma das opções disponíveis.');
+      return;
+    }
+
     const animal: AnimalInput = {
       tagNumber,
       name: form.name.trim() || undefined,
       photoUri,
-      category: form.category,
+      category,
       gender: form.gender,
-      breed: form.breed === 'Outra' ? form.customBreed.trim() || 'Outra' : form.breed,
-      birthDate: form.birthDate.trim() || undefined,
+      breed,
+      ageMonths: form.ageMonths,
+      birthDate: form.birthDate || formatDate(new Date()),
       origin: form.origin,
       status: form.status,
       notes: form.notes.trim() || undefined,
@@ -157,12 +207,6 @@ export function AnimalRegistrationScreen({ initialAnimal, onCancel, onSaveAnimal
     setShowTagError(false);
     console.log('Cadastro cancelado');
     onCancel();
-  }
-
-  function setEstimatedAge(months: number) {
-    const birthDate = new Date();
-    birthDate.setMonth(birthDate.getMonth() - months);
-    updateField('birthDate', formatDate(birthDate));
   }
 
   function onPickPhoto() {
@@ -366,32 +410,19 @@ export function AnimalRegistrationScreen({ initialAnimal, onCancel, onSaveAnimal
             <View style={styles.formSection}>
               <View style={styles.labelRow}>
                 <PawPrint color={colors.primary} size={19} strokeWidth={2.3} />
-                <Text style={styles.label}>Categoria <Text style={styles.required}>*</Text></Text>
+                <Text style={styles.label}>Classificação automática</Text>
               </View>
-              <View style={styles.categoryGrid}>
-                {CATEGORIES.map((category) => {
-                  const selected = form.category === category;
-
-                  return (
-                    <Pressable
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected }}
-                      key={category}
-                      onPress={() => updateField('category', category)}
-                      style={({ pressed }) => [styles.categoryOption, selected && styles.selectionActive, pressed && styles.selectionPressed]}
-                    >
-                      <Text style={[styles.selectionText, selected && styles.selectionTextActive]}>{category}</Text>
-                      {selected ? <Check color={colors.white} size={18} strokeWidth={3} /> : null}
-                    </Pressable>
-                  );
-                })}
-              </View>
+              <Text style={styles.classificationValue}>{category}</Text>
+              <Text style={styles.helperText}>Calculada pelo sexo e pela idade do animal.</Text>
             </View>
 
             <View style={styles.formSection}>
-              <Text style={styles.label}>Sexo</Text>
+              <Text style={styles.label}>Sexo biológico</Text>
               <View accessibilityRole="radiogroup" style={styles.segmentedControl}>
-                {GENDERS.map((gender) => {
+                {([
+                  { gender: 'Fêmea', label: 'Vaca' },
+                  { gender: 'Macho', label: 'Boi' },
+                ] as const).map(({ gender, label }) => {
                   const selected = form.gender === gender;
 
                   return (
@@ -402,7 +433,7 @@ export function AnimalRegistrationScreen({ initialAnimal, onCancel, onSaveAnimal
                       onPress={() => updateField('gender', gender)}
                       style={({ pressed }) => [styles.segment, selected && styles.segmentActive, pressed && styles.selectionPressed]}
                     >
-                      <Text style={[styles.segmentText, selected && styles.segmentTextActive]}>{gender}</Text>
+                      <Text style={[styles.segmentText, selected && styles.segmentTextActive]}>{label}</Text>
                     </Pressable>
                   );
                 })}
@@ -411,24 +442,29 @@ export function AnimalRegistrationScreen({ initialAnimal, onCancel, onSaveAnimal
 
             <View style={styles.formSection}>
               <Text style={styles.label}>Raça</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillRow}>
-                {BREEDS.map((breed) => {
-                  const selected = form.breed === breed;
-
-                  return (
-                    <Pressable
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected }}
-                      key={breed}
-                      onPress={() => selectBreed(breed)}
-                      style={({ pressed }) => [styles.pill, selected && styles.pillActive, pressed && styles.selectionPressed]}
-                    >
-                      <Text style={[styles.pillText, selected && styles.pillTextActive]}>{breed}</Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-              {form.breed === 'Outra' ? (
+              <Text style={styles.breedGroupLabel}>Gado de corte</Text>
+              <View style={styles.breedOptions}>
+                {BREEDS.slice(0, 2).map((breed) => (
+                  <BreedOption key={breed} breed={breed} selected={form.breed === breed} onSelect={selectBreed} />
+                ))}
+              </View>
+              <Text style={styles.breedGroupLabel}>Gado de leite</Text>
+              <View style={styles.breedOptions}>
+                {BREEDS.slice(2).map((breed) => (
+                  <BreedOption key={breed} breed={breed} selected={form.breed === breed} onSelect={selectBreed} />
+                ))}
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded: form.otherBreedExpanded }}
+                onPress={toggleOtherBreed}
+                style={({ pressed }) => [styles.otherBreedButton, form.otherBreedExpanded && styles.otherBreedButtonActive, pressed && styles.selectionPressed]}
+              >
+                <Text style={[styles.otherBreedButtonText, form.otherBreedExpanded && styles.otherBreedButtonTextActive]}>
+                  {form.otherBreedExpanded ? '−  Fechar outras raças' : '+  Outra raça'}
+                </Text>
+              </Pressable>
+              {form.otherBreedExpanded ? (
                 <View style={[styles.inputControl, focusedField === 'customBreed' && styles.inputFocused]}>
                   <TextInput
                     accessibilityLabel="Informe a raça"
@@ -450,15 +486,24 @@ export function AnimalRegistrationScreen({ initialAnimal, onCancel, onSaveAnimal
             <View style={styles.formSection}>
               <View style={styles.labelRow}>
                 <Calendar color={colors.primary} size={19} strokeWidth={2.3} />
-                <Text style={styles.label}>Nascimento / Idade Estimada</Text>
+                <Text style={styles.label}>Idade do animal</Text>
               </View>
+              <View style={styles.ageValueRow}>
+                <AgeMonthsInput value={form.ageMonths} maximumValue={MAX_AGE_MONTHS} onValueChange={setAgeMonths} />
+                <Text style={styles.classificationValue}>{category}</Text>
+              </View>
+              <AgeSlider value={form.ageMonths} maximumValue={MAX_AGE_MONTHS} onValueChange={setAgeMonths} />
+              <Text style={styles.helperText}>
+                Deslize para ajustar a idade. Nascimento estimado: {form.birthDate || 'hoje'}.
+              </Text>
+              <Text style={styles.label}>Ou informe a data de nascimento</Text>
               <View style={[styles.inputControl, focusedField === 'birthDate' && styles.inputFocused]}>
                 <TextInput
-                  accessibilityLabel="Data de nascimento ou idade estimada"
+                  accessibilityLabel="Data de nascimento no formato dia, mês e ano"
                   keyboardType="numbers-and-punctuation"
                   maxLength={10}
                   onBlur={() => setFocusedField(null)}
-                  onChangeText={(value) => updateField('birthDate', value)}
+                  onChangeText={updateBirthDate}
                   onFocus={() => setFocusedField('birthDate')}
                   placeholder="DD/MM/AAAA"
                   placeholderTextColor={colors.muted}
@@ -466,13 +511,11 @@ export function AnimalRegistrationScreen({ initialAnimal, onCancel, onSaveAnimal
                   value={form.birthDate}
                 />
               </View>
-              <Text style={styles.helperText}>Ou preencha pela idade aproximada:</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillRow}>
-                <AgeShortcut label="+ 6 meses" months={6} onPress={setEstimatedAge} />
-                <AgeShortcut label="+ 1 ano" months={12} onPress={setEstimatedAge} />
-                <AgeShortcut label="+ 2 anos" months={24} onPress={setEstimatedAge} />
-                <AgeShortcut label="+ 3+ anos" months={36} onPress={setEstimatedAge} />
-              </ScrollView>
+              {form.birthDate.length === 10 && getAgeInMonths(form.birthDate) === null ? (
+                <Text accessibilityLiveRegion="polite" style={styles.errorText}>
+                  Informe uma data válida entre 01/01/2006 e hoje.
+                </Text>
+              ) : null}
             </View>
 
             <View style={styles.formSection}>
@@ -562,12 +605,165 @@ export function AnimalRegistrationScreen({ initialAnimal, onCancel, onSaveAnimal
   );
 }
 
-function AgeShortcut({ label, months, onPress }: { label: string; months: number; onPress: (months: number) => void }) {
+function BreedOption({
+  breed,
+  selected,
+  onSelect,
+}: {
+  breed: string;
+  selected: boolean;
+  onSelect: (breed: string) => void;
+}) {
   return (
-    <Pressable accessibilityRole="button" onPress={() => onPress(months)} style={({ pressed }) => [styles.agePill, pressed && styles.selectionPressed]}>
-      <Text style={styles.agePillText}>{label}</Text>
+    <Pressable
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+      onPress={() => onSelect(breed)}
+      style={({ pressed }) => [styles.breedOption, selected && styles.breedOptionActive, pressed && styles.selectionPressed]}
+    >
+      <Text style={[styles.breedOptionText, selected && styles.breedOptionTextActive]}>{breed}</Text>
     </Pressable>
   );
+}
+
+function AgeSlider({
+  value,
+  maximumValue,
+  onValueChange,
+}: {
+  value: number;
+  maximumValue: number;
+  onValueChange: (value: number) => void;
+}) {
+  const trackRef = useRef<View>(null);
+  const [trackWidth, setTrackWidth] = useState(0);
+  const [trackPageX, setTrackPageX] = useState(0);
+  const progress = maximumValue > 0 ? (value / maximumValue) * 100 : 0;
+
+  const updateFromPosition = (screenX: number) => {
+    if (trackWidth === 0) return;
+    const position = Math.max(0, Math.min(1, (screenX - trackPageX) / trackWidth));
+    onValueChange(position * maximumValue);
+  };
+
+  const panResponder = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderGrant: (_, gesture) => updateFromPosition(gesture.moveX),
+    onPanResponderMove: (_, gesture) => updateFromPosition(gesture.moveX),
+  }), [maximumValue, onValueChange, trackPageX, trackWidth]);
+
+  function handleAccessibilityAction(actionName: string) {
+    if (actionName === 'increment') onValueChange(Math.min(maximumValue, value + 1));
+    if (actionName === 'decrement') onValueChange(Math.max(0, value - 1));
+  }
+
+  return (
+    <View
+      {...panResponder.panHandlers}
+      accessibilityActions={[{ name: 'increment', label: 'Aumentar idade em um mês' }, { name: 'decrement', label: 'Diminuir idade em um mês' }]}
+      accessibilityLabel="Idade do animal em meses"
+      accessibilityRole="adjustable"
+      accessibilityValue={{ min: 0, max: maximumValue, now: value }}
+      onAccessibilityAction={(event) => handleAccessibilityAction(event.nativeEvent.actionName)}
+      onLayout={(event) => {
+        setTrackWidth(event.nativeEvent.layout.width);
+        trackRef.current?.measureInWindow((x) => setTrackPageX(x));
+      }}
+      ref={trackRef}
+      style={styles.sliderTouchArea}
+    >
+      <View style={styles.sliderTrack}>
+        <View style={[styles.sliderProgress, { width: `${progress}%` }]} />
+        <View style={[styles.sliderThumb, { left: `${progress}%` }]} />
+      </View>
+      <View style={styles.sliderRangeLabels}>
+        <Text style={styles.helperText}>0 meses</Text>
+        <Text style={styles.helperText}>{maximumValue} meses</Text>
+      </View>
+    </View>
+  );
+}
+
+function AgeMonthsInput({
+  value,
+  maximumValue,
+  onValueChange,
+}: {
+  value: number;
+  maximumValue: number;
+  onValueChange: (value: number) => void;
+}) {
+  const [text, setText] = useState(String(value));
+
+  useEffect(() => {
+    setText(String(value));
+  }, [value]);
+
+  function handleChangeText(input: string) {
+    if (!/^\d*$/.test(input)) return;
+    setText(input);
+    if (input) onValueChange(Math.min(maximumValue, Number(input)));
+  }
+
+  function normalizeValue() {
+    const months = Math.min(maximumValue, Math.max(0, Number(text) || 0));
+    setText(String(months));
+    onValueChange(months);
+  }
+
+  return (
+    <View style={styles.ageInputGroup}>
+      <TextInput
+        accessibilityLabel="Idade do animal em meses"
+        keyboardType="number-pad"
+        onBlur={normalizeValue}
+        onChangeText={handleChangeText}
+        selectTextOnFocus
+        style={styles.ageInput}
+        value={text}
+      />
+      <Text style={styles.ageUnit}>meses</Text>
+    </View>
+  );
+}
+
+function classifyAnimal(gender: AnimalInput['gender'], ageMonths: number): AnimalInput['category'] {
+  if (gender === 'Fêmea') {
+    if (ageMonths <= 10) return 'Bezerra';
+    if (ageMonths <= 24) return 'Novilha';
+    return 'Vaca';
+  }
+
+  if (ageMonths <= 10) return 'Bezerro';
+  if (ageMonths <= 18) return 'Garrote';
+  return 'Touro';
+}
+
+function getAgeInMonths(birthDate?: string): number | null {
+  if (!birthDate) return null;
+  const [day, month, year] = birthDate.split('/').map(Number);
+  if (!day || !month || !year) return null;
+
+  const birth = new Date(year, month - 1, day);
+  if (
+    birth.getFullYear() !== year
+    || birth.getMonth() !== month - 1
+    || birth.getDate() !== day
+    || birth < new Date(MIN_BIRTH_YEAR, 0, 1)
+    || birth > new Date()
+  ) return null;
+
+  const today = new Date();
+  const months = (today.getFullYear() - year) * 12 + today.getMonth() - (month - 1);
+  return Math.max(0, months - (today.getDate() < day ? 1 : 0));
+}
+
+function formatBirthDateInput(value: string) {
+  const digits = value.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
 }
 
 function formatDate(date: Date) {
@@ -577,23 +773,17 @@ function formatDate(date: Date) {
   return `${day}/${month}/${date.getFullYear()}`;
 }
 
+function estimateBirthDate(ageMonths: number) {
+  const birthDate = new Date();
+  const day = birthDate.getDate();
+  birthDate.setDate(1);
+  birthDate.setMonth(birthDate.getMonth() - ageMonths);
+  const lastDayOfMonth = new Date(birthDate.getFullYear(), birthDate.getMonth() + 1, 0).getDate();
+  birthDate.setDate(Math.min(day, lastDayOfMonth));
+  return formatDate(birthDate);
+}
+
 const styles = StyleSheet.create({
-  agePill: {
-    alignItems: 'center',
-    backgroundColor: colors.input,
-    borderColor: colors.border,
-    borderRadius: 18,
-    borderWidth: 1,
-    justifyContent: 'center',
-    minHeight: 40,
-    paddingHorizontal: 14,
-  },
-  agePillText: {
-    color: colors.primary,
-    fontFamily: fonts.semibold,
-    fontSize: 14,
-    lineHeight: 20,
-  },
   backButton: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -639,22 +829,133 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-  categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
+  ageInput: {
+    color: colors.primary,
+    fontFamily: fonts.bold,
+    fontSize: 18,
+    lineHeight: 24,
+    minWidth: 42,
+    padding: 0,
+    textAlign: 'right',
   },
-  categoryOption: {
+  ageInputGroup: {
+    alignItems: 'center',
+    backgroundColor: colors.input,
+    borderColor: colors.border,
+    borderRadius: 9,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 5,
+    minHeight: 42,
+    paddingHorizontal: 10,
+  },
+  ageUnit: {
+    color: colors.muted,
+    fontFamily: fonts.medium,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  ageValueRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  breedGroupLabel: {
+    color: colors.muted,
+    fontFamily: fonts.semibold,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 4,
+  },
+  breedOption: {
     alignItems: 'center',
     backgroundColor: colors.white,
     borderColor: colors.border,
     borderRadius: 10,
     borderWidth: 1,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 46,
+    paddingHorizontal: 12,
+  },
+  breedOptionActive: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary,
+    borderWidth: 1.5,
+  },
+  breedOptionText: {
+    color: colors.muted,
+    fontFamily: fonts.semibold,
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  breedOptionTextActive: {
+    color: colors.primary,
+  },
+  breedOptions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  classificationValue: {
+    color: colors.primary,
+    fontFamily: fonts.bold,
+    fontSize: 17,
+    lineHeight: 23,
+  },
+  otherBreedButton: {
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: 10,
+    borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: 46,
+    paddingHorizontal: 12,
+  },
+  otherBreedButtonActive: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary,
+  },
+  otherBreedButtonText: {
+    color: colors.muted,
+    fontFamily: fonts.semibold,
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  otherBreedButtonTextActive: {
+    color: colors.primary,
+  },
+  sliderProgress: {
+    backgroundColor: colors.primary,
+    borderRadius: 5,
+    height: 6,
+  },
+  sliderRangeLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    minHeight: 50,
-    paddingHorizontal: 14,
-    width: '48.5%',
+    marginTop: 2,
+  },
+  sliderThumb: {
+    backgroundColor: colors.white,
+    borderColor: colors.primary,
+    borderRadius: 12,
+    borderWidth: 3,
+    height: 24,
+    marginLeft: -12,
+    marginTop: -9,
+    position: 'absolute',
+    width: 24,
+  },
+  sliderTouchArea: {
+    justifyContent: 'center',
+    minHeight: 48,
+    paddingHorizontal: 12,
+  },
+  sliderTrack: {
+    backgroundColor: colors.border,
+    borderRadius: 5,
+    height: 6,
+    justifyContent: 'center',
   },
   errorMessage: {
     alignItems: 'flex-start',

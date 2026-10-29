@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Calendar,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
   Clock,
   Info,
-  MessageSquare,
   PawPrint,
   RefreshCw,
   Scale,
@@ -47,11 +49,39 @@ interface SmartConsultationScreenProps {
   onTabChange: (tabIndex: AppTabIndex) => void;
 }
 
-const QUICK_QUESTIONS = [
-  'Quais animais estão com vacinação atrasada?',
-  'Quais vacas têm parto próximo?',
-  'Quais animais tiveram maior ganho de peso?',
-  'Quais manejos estão pendentes esta semana?',
+const SUGGESTED_TOPICS = [
+  {
+    icon: 'health',
+    title: 'Saúde',
+    questions: [
+      'Quais animais estão com vacinação atrasada?',
+      'Quais manejos sanitários estão pendentes?',
+    ],
+  },
+  {
+    icon: 'reproduction',
+    title: 'Reprodução',
+    questions: [
+      'Quais vacas têm parto próximo?',
+      'Quais partos estão previstos para esta semana?',
+    ],
+  },
+  {
+    icon: 'production',
+    title: 'Produção',
+    questions: [
+      'Quais animais tiveram maior ganho de peso?',
+      'Como está a evolução do peso do rebanho?',
+    ],
+  },
+  {
+    icon: 'handling',
+    title: 'Manejo',
+    questions: [
+      'Quais manejos estão pendentes esta semana?',
+      'Quais manejos estão atrasados?',
+    ],
+  },
 ];
 
 const MOCK_AI_RESPONSES: Record<string, Omit<MessageItem, 'id'>> = {
@@ -98,6 +128,7 @@ export function SmartConsultationScreen({ alertCount, onTabChange }: SmartConsul
   const [isLoading, setIsLoading] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
   const [queryHistory, setQueryHistory] = useState<MessageItem[]>([]);
+  const [areSuggestionsExpanded, setAreSuggestionsExpanded] = useState(true);
   const scrollRef = useRef<ScrollView>(null);
   const responseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -115,6 +146,7 @@ export function SmartConsultationScreen({ alertCount, onTabChange }: SmartConsul
 
     Keyboard.dismiss();
     setSearchQuery('');
+    setAreSuggestionsExpanded(false);
     setQueryHistory((current) => [
       ...current,
       {
@@ -140,7 +172,6 @@ export function SmartConsultationScreen({ alertCount, onTabChange }: SmartConsul
   function onSelectQuickChip(chipText: string) {
     if (isOffline || isLoading) return;
     setSearchQuery(chipText);
-    onSendQuery(chipText);
   }
 
   function onToggleConnection(status: boolean) {
@@ -184,23 +215,6 @@ export function SmartConsultationScreen({ alertCount, onTabChange }: SmartConsul
           </Text>
         </View>
 
-        <View style={styles.quickQuestions}>
-          <Text style={styles.quickTitle}>Perguntas sugeridas</Text>
-          <ScrollView horizontal contentContainerStyle={styles.chipsContent} showsHorizontalScrollIndicator={false}>
-            {QUICK_QUESTIONS.map((question) => (
-              <Pressable
-                accessibilityRole="button"
-                disabled={isOffline || isLoading}
-                key={question}
-                onPress={() => onSelectQuickChip(question)}
-                style={({ pressed }) => [styles.questionChip, pressed && styles.chipPressed, (isOffline || isLoading) && styles.disabled]}
-              >
-                <Text style={styles.questionChipText}>{question}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
-
         <ScrollView
           contentContainerStyle={styles.conversationContent}
           keyboardShouldPersistTaps="handled"
@@ -211,7 +225,16 @@ export function SmartConsultationScreen({ alertCount, onTabChange }: SmartConsul
             <OfflineCard onSeeAnimals={() => onTabChange(1)} onRetry={() => onToggleConnection(false)} />
           ) : null}
 
-          {queryHistory.length === 0 && !isOffline ? <WelcomeCard /> : null}
+          {!isOffline ? (
+            <SuggestedQuestions
+              disabled={isLoading}
+              expanded={areSuggestionsExpanded}
+              hasConversation={queryHistory.length > 0}
+              onSelectQuestion={onSelectQuickChip}
+              onToggle={() => setAreSuggestionsExpanded((expanded) => !expanded)}
+              selectedQuestion={searchQuery}
+            />
+          ) : null}
 
           {queryHistory.map((message) => (
             <MessageBubble key={message.id} message={message} />
@@ -272,16 +295,86 @@ function getMockResponse(query: string): Omit<MessageItem, 'id'> {
   };
 }
 
-function WelcomeCard() {
+function SuggestedQuestions({
+  disabled,
+  expanded,
+  hasConversation,
+  onSelectQuestion,
+  onToggle,
+  selectedQuestion,
+}: {
+  disabled: boolean;
+  expanded: boolean;
+  hasConversation: boolean;
+  onSelectQuestion: (question: string) => void;
+  onToggle: () => void;
+  selectedQuestion: string;
+}) {
   return (
-    <View style={styles.welcome}>
-      <View style={styles.welcomeIcon}>
-        <MessageSquare color={colors.primary} size={30} strokeWidth={2} />
-      </View>
-      <Text style={styles.welcomeTitle}>Como posso ajudar com o rebanho?</Text>
-      <Text style={styles.welcomeText}>Toque em uma pergunta sugerida acima ou digite sua dúvida no campo abaixo.</Text>
+    <View style={styles.suggestions}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        onPress={onToggle}
+        style={({ pressed }) => [styles.suggestionsHeader, pressed && styles.chipPressed]}
+      >
+        <View style={styles.suggestionsIntro}>
+          <Text style={styles.suggestionsTitle}>
+            {hasConversation ? 'Mais perguntas' : 'O que você quer acompanhar?'}
+          </Text>
+          {expanded ? (
+            <Text style={styles.suggestionsSubtitle}>Escolha uma pergunta para editar ou escreva a sua abaixo.</Text>
+          ) : null}
+        </View>
+        {expanded
+          ? <ChevronUp color={colors.muted} size={20} />
+          : <ChevronDown color={colors.muted} size={20} />}
+      </Pressable>
+      {expanded ? (
+        <View style={styles.topicGrid}>
+          {SUGGESTED_TOPICS.map((topic) => (
+            <View key={topic.title} style={styles.topicCard}>
+              <View style={styles.topicHeading}>
+                <TopicIcon name={topic.icon} />
+                <Text style={styles.topicTitle}>{topic.title}</Text>
+              </View>
+              {topic.questions.map((question) => {
+                const selected = selectedQuestion === question;
+                return (
+                  <Pressable
+                    accessibilityLabel={`Preencher consulta: ${question}`}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    disabled={disabled}
+                    key={question}
+                    onPress={() => onSelectQuestion(question)}
+                    style={({ pressed }) => [
+                      styles.suggestedQuestion,
+                      selected && styles.suggestedQuestionSelected,
+                      pressed && styles.chipPressed,
+                      disabled && styles.disabled,
+                    ]}
+                  >
+                    <Text style={[styles.suggestedQuestionText, selected && styles.suggestedQuestionTextSelected]}>
+                      {question}
+                    </Text>
+                    <ChevronRight color={selected ? colors.primary : colors.muted} size={16} />
+                  </Pressable>
+                );
+              })}
+            </View>
+          ))}
+        </View>
+      ) : null}
     </View>
   );
+}
+
+function TopicIcon({ name }: { name: string }) {
+  if (name === 'health') return <Syringe color={colors.primary} size={18} />;
+  if (name === 'reproduction') return <Calendar color={colors.primary} size={18} />;
+  if (name === 'production') return <Scale color={colors.primary} size={18} />;
+  return <Clock color={colors.primary} size={18} />;
 }
 
 function OfflineCard({ onRetry, onSeeAnimals }: { onRetry: () => void; onSeeAnimals: () => void }) {
@@ -367,18 +460,22 @@ const styles = StyleSheet.create({
   connectionTextOffline: { color: colors.warning },
   scopeBanner: { alignItems: 'flex-start', backgroundColor: colors.white, borderColor: '#E2E8F0', borderRadius: 10, borderWidth: 1, flexDirection: 'row', gap: 10, marginHorizontal: 16, marginTop: 12, padding: 12 },
   scopeText: { color: colors.muted, flex: 1, fontFamily: fonts.regular, fontSize: 16, lineHeight: 22 },
-  quickQuestions: { gap: 7, paddingTop: 13 },
-  quickTitle: { color: colors.text, fontFamily: fonts.semibold, fontSize: 17, lineHeight: 23, paddingHorizontal: 16 },
-  chipsContent: { gap: 8, paddingHorizontal: 16, paddingVertical: 2 },
-  questionChip: { alignItems: 'center', backgroundColor: colors.input, borderColor: '#CBD5E1', borderRadius: 22, borderWidth: 1, justifyContent: 'center', minHeight: 48, paddingHorizontal: 14 },
-  questionChipText: { color: colors.primary, fontFamily: fonts.medium, fontSize: 16 },
+  suggestions: { gap: 12, paddingBottom: 8 },
+  suggestionsHeader: { alignItems: 'center', borderRadius: 8, flexDirection: 'row', justifyContent: 'space-between', minHeight: 44, paddingHorizontal: 2 },
+  suggestionsIntro: { gap: 3, paddingHorizontal: 2 },
+  suggestionsTitle: { color: colors.text, fontFamily: fonts.semibold, fontSize: 18, lineHeight: 25 },
+  suggestionsSubtitle: { color: colors.muted, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20 },
+  topicGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between' },
+  topicCard: { backgroundColor: colors.white, borderColor: '#E2E8F0', borderRadius: 11, borderWidth: 1, gap: 7, padding: 10, width: '48%' },
+  topicHeading: { alignItems: 'center', flexDirection: 'row', gap: 7, marginBottom: 1 },
+  topicTitle: { color: colors.text, fontFamily: fonts.semibold, fontSize: 15, lineHeight: 20 },
+  suggestedQuestion: { alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 8, flexDirection: 'row', gap: 3, justifyContent: 'space-between', minHeight: 44, paddingHorizontal: 7, paddingVertical: 5 },
+  suggestedQuestionSelected: { backgroundColor: colors.primarySoft, borderColor: colors.primary, borderWidth: 1 },
+  suggestedQuestionText: { color: colors.muted, flex: 1, fontFamily: fonts.medium, fontSize: 13, lineHeight: 17 },
+  suggestedQuestionTextSelected: { color: colors.primary },
   chipPressed: { backgroundColor: '#DCE7FB' },
   disabled: { opacity: 0.6 },
   conversationContent: { flexGrow: 1, gap: 12, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 14 },
-  welcome: { alignItems: 'center', flex: 1, justifyContent: 'center', minHeight: 210, paddingHorizontal: 15 },
-  welcomeIcon: { alignItems: 'center', backgroundColor: colors.input, borderRadius: 36, height: 72, justifyContent: 'center', marginBottom: 13, width: 72 },
-  welcomeTitle: { color: colors.text, fontFamily: fonts.semibold, fontSize: 18, lineHeight: 25, textAlign: 'center' },
-  welcomeText: { color: colors.muted, fontFamily: fonts.regular, fontSize: 16, lineHeight: 23, marginTop: 6, textAlign: 'center' },
   userMessage: { alignSelf: 'flex-end', backgroundColor: colors.primary, borderRadius: 14, borderBottomRightRadius: 4, maxWidth: '88%', paddingHorizontal: 14, paddingVertical: 10 },
   userMessageText: { color: colors.white, fontFamily: fonts.regular, fontSize: 16, lineHeight: 22 },
   userTimestamp: { color: '#E2F5E4', fontFamily: fonts.regular, fontSize: 14, marginTop: 4, textAlign: 'right' },

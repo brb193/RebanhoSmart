@@ -22,7 +22,7 @@ import { AnimalEmptyState } from './AnimalEmptyState';
 import { ListLoadState, type ListLoadStatus } from './ListLoadState';
 import { ScreenSafeArea as SafeAreaView } from './ScreenSafeArea';
 
-type AnimalCategory = 'Todos' | 'Vacas' | 'Novilhas' | 'Bezerros' | 'Touros';
+type AnimalCategory = 'Todos' | 'Vacas' | 'Novilhas' | 'Bezerros' | 'Garrotes' | 'Touros';
 type SanitaryStatus = 'Em dia' | 'Vacina atrasada' | 'Vermífugo pend.';
 
 export interface Animal {
@@ -32,6 +32,8 @@ export interface Animal {
   categoria: Exclude<AnimalCategory, 'Todos'>;
   raca: string;
   status: SanitaryStatus;
+  gender?: 'Fêmea' | 'Macho';
+  ageMonths?: number;
 }
 
 // Mock de Dados - 40 Animais
@@ -75,7 +77,7 @@ export const MOCK_ANIMALS: Animal[] = [
   })),
 ];
 
-const CATEGORIES: AnimalCategory[] = ['Todos', 'Vacas', 'Novilhas', 'Bezerros', 'Touros'];
+const CATEGORIES: AnimalCategory[] = ['Todos', 'Vacas', 'Novilhas', 'Bezerros', 'Garrotes', 'Touros'];
 
 interface AnimalListScreenProps {
   animals: Animal[];

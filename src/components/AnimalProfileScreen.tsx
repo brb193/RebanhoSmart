@@ -47,6 +47,7 @@ export interface AnimalProfile {
   breed: string;
   gender: string;
   birthDate: string;
+  ageMonths?: number;
   origin: string;
   status: 'Ativa' | 'Inativa';
   currentWeight: number;
@@ -211,7 +212,11 @@ export function AnimalProfileScreen({
           <SectionTitle icon={Tag} title="Dados cadastrais" />
           <View style={styles.infoCard}>
             <InfoCell label="Sexo" value={animal.gender} />
-            <InfoCell label="Nascimento / idade" value={animal.birthDate} detail={formatAnimalAge(animal.birthDate)} />
+            <InfoCell
+              label="Nascimento / idade"
+              value={animal.birthDate || 'Não informada'}
+              detail={formatAnimalAge(animal.birthDate, animal.ageMonths)}
+            />
             <InfoCell label="Origem" value={animal.origin} />
             <InfoCell label="Situação" value={`${animal.status} no rebanho`} />
             {animal.notes ? (
@@ -479,8 +484,11 @@ function formatWeight(weight: number) {
   return Number.isInteger(weight) ? String(weight) : weight.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 }
 
-function formatAnimalAge(birthDate: string) {
-  if (!birthDate) return '—';
+function formatAnimalAge(birthDate: string, ageMonths?: number) {
+  if (!birthDate) {
+    if (ageMonths === undefined) return '—';
+    return `${ageMonths} ${ageMonths === 1 ? 'mês' : 'meses'}`;
+  }
   const [day, month, year] = birthDate.split('/').map(Number);
   const birth = new Date(year, month - 1, day);
   const today = new Date();
